@@ -1,0 +1,27 @@
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+test_bot.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.log
+*.env
+
+# Environment variables
+.env
+.env.local
+config.json
+secrets.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
