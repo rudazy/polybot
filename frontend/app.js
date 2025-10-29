@@ -2,8 +2,10 @@
  * Polymarket Trading Bot - Frontend JavaScript with Wallet Integration & Private Key Export
  */
 
-// API Base URL
-const API_URL = 'http://localhost:8000';
+// API Base URL - Auto-detect environment
+const API_URL = window.location.hostname === 'localhost'
+    ? 'http://localhost:8000'
+    : '/api';
 
 // Global state
 let currentUser = null;
@@ -16,7 +18,7 @@ let copyTradingActive = false;
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 Polymarket Bot Dashboard Initialized');
-    
+
     // Check if user is logged in
     const savedUser = localStorage.getItem('polybot_user');
     if (savedUser) {
@@ -24,9 +26,10 @@ document.addEventListener('DOMContentLoaded', () => {
         currentUserId = currentUser.id;
         checkWalletAndProceed();
     } else {
-        showAuthModal();
+        // Show dashboard in demo mode without login
+        showDashboardDemo();
     }
-    
+
     // Initialize event listeners
     setTimeout(initEventListeners, 100);
 });
@@ -64,6 +67,8 @@ function initEventListeners() {
     const loginBtn = document.getElementById('login-btn');
     const registerBtn = document.getElementById('register-btn');
     const disconnectBtn = document.getElementById('disconnect-btn');
+    const loginRegisterBtn = document.getElementById('login-register-btn');
+    const closeAuthModal = document.getElementById('close-auth-modal');
     const forgotPasswordLink = document.getElementById('forgot-password-link');
     const resetPasswordBtn = document.getElementById('reset-password-btn');
     const cancelResetBtn = document.getElementById('cancel-reset-btn');
@@ -71,9 +76,21 @@ function initEventListeners() {
     if (loginBtn) loginBtn.addEventListener('click', handleLogin);
     if (registerBtn) registerBtn.addEventListener('click', handleRegister);
     if (disconnectBtn) disconnectBtn.addEventListener('click', handleDisconnect);
+    if (loginRegisterBtn) loginRegisterBtn.addEventListener('click', showAuthModal);
+    if (closeAuthModal) closeAuthModal.addEventListener('click', hideAuthModal);
     if (forgotPasswordLink) forgotPasswordLink.addEventListener('click', showForgotPasswordModal);
     if (resetPasswordBtn) resetPasswordBtn.addEventListener('click', handlePasswordReset);
     if (cancelResetBtn) cancelResetBtn.addEventListener('click', hideForgotPasswordModal);
+
+    // Close modal when clicking outside
+    const authModal = document.getElementById('auth-modal');
+    if (authModal) {
+        authModal.addEventListener('click', (e) => {
+            if (e.target === authModal) {
+                hideAuthModal();
+            }
+        });
+    }
     
     // Wallet actions
     const createWalletBtn = document.getElementById('create-wallet-btn');
@@ -541,20 +558,39 @@ function showPrivateKeyModal(privateKey) {
 function showAuthModal() {
     document.getElementById('auth-modal').style.display = 'flex';
     document.getElementById('wallet-modal').style.display = 'none';
-    document.getElementById('dashboard').style.display = 'none';
+}
+
+function hideAuthModal() {
+    document.getElementById('auth-modal').style.display = 'none';
 }
 
 function showWalletModal() {
     document.getElementById('auth-modal').style.display = 'none';
     document.getElementById('wallet-modal').style.display = 'flex';
-    document.getElementById('dashboard').style.display = 'none';
+}
+
+function showDashboardDemo() {
+    // Show dashboard without login
+    document.getElementById('auth-modal').style.display = 'none';
+    document.getElementById('wallet-modal').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+
+    // Load public data
+    loadMarkets();
+    loadTopTraders();
+
+    // Start whale activity notifications
+    startWhaleActivityPolling();
+
+    // Show login/register button
+    document.getElementById('login-register-btn').style.display = 'block';
 }
 
 function showDashboard() {
     document.getElementById('auth-modal').style.display = 'none';
     document.getElementById('wallet-modal').style.display = 'none';
     document.getElementById('dashboard').style.display = 'block';
-    
+
     updateUserInterface();
     loadStats();
     loadMarkets();
@@ -565,7 +601,7 @@ function showDashboard() {
     checkBotStatus();
     loadTopTraders();
     loadNetworkStatus();
-    
+
     setInterval(() => {
         loadStats();
         loadActivity();
@@ -578,6 +614,10 @@ function showDashboard() {
 }
 
 function updateUserInterface() {
+    // Show user elements
+    document.getElementById('login-register-btn').style.display = 'none';
+    document.getElementById('points-display').style.display = 'flex';
+    document.getElementById('wallet-badge').style.display = 'flex';
     document.getElementById('disconnect-btn').style.display = 'block';
 }
 

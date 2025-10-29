@@ -18,14 +18,17 @@
                 </h1>
             </div>
             <div class="nav-right">
-                <div class="points-display">
+                <div class="points-display" id="points-display" style="display: none;">
                     <span class="points-icon">⭐</span>
                     <span id="user-points">0</span> Points
                 </div>
-                <div class="wallet-badge" id="wallet-badge">
+                <div class="wallet-badge" id="wallet-badge" style="display: none;">
                     <span class="wallet-icon">👛</span>
                     <span id="wallet-address">No Wallet</span>
                 </div>
+                <button class="btn-primary" id="login-register-btn">
+                    Login / Register
+                </button>
                 <button class="btn-disconnect" id="disconnect-btn" style="display: none;">
                     Disconnect
                 </button>
@@ -40,8 +43,9 @@
     <div class="container">
         
         <!-- Login/Register Modal -->
-        <div class="modal" id="auth-modal">
+        <div class="modal" id="auth-modal" style="display: none;">
             <div class="modal-content auth-modal">
+                <button class="modal-close" id="close-auth-modal">×</button>
                 <h2>Welcome to Polymarket Bot</h2>
                 <p class="subtitle">Automated trading made simple</p>
                 
