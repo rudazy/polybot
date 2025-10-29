@@ -13,6 +13,7 @@ import uvicorn
 from mongodb_database import MongoDatabase
 from polymarket_api import PolymarketAPI
 from trading_bot import TradingBot
+from wallet_manager import WalletManager
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -33,6 +34,7 @@ app.add_middleware(
 # Initialize services
 db = MongoDatabase()
 polymarket = PolymarketAPI()
+wallet_manager = WalletManager(db)
 active_bots = {}  # Store active bot instances per user
 
 
@@ -66,6 +68,10 @@ class TradeCreate(BaseModel):
 class PointsRedeem(BaseModel):
     amount: int
     reward: str
+
+
+class WalletConnect(BaseModel):
+    wallet_address: str
 
 
 # ==================== HEALTH CHECK ====================
@@ -355,6 +361,81 @@ def get_recent_activity(user_id: str, limit: int = 5):
         "success": True,
         "activity": activity
     }
+
+
+# ==================== WALLET ENDPOINTS ====================
+
+@app.post("/wallet/create-inapp/{user_id}")
+def create_in_app_wallet(user_id: str):
+    """Create in-app wallet for user (Quick Start option)"""
+    result = wallet_manager.create_in_app_wallet(user_id)
+    
+    if result['success']:
+        return {
+            "success": True,
+            "wallet": result
+        }
+    else:
+        raise HTTPException(status_code=400, detail=result.get('error', 'Failed to create wallet'))
+
+
+@app.post("/wallet/connect-external/{user_id}")
+def connect_external_wallet(user_id: str, wallet_data: WalletConnect):
+    """Connect external wallet (MetaMask/WalletConnect option)"""
+    result = wallet_manager.connect_external_wallet(user_id, wallet_data.wallet_address)
+    
+    if result['success']:
+        return {
+            "success": True,
+            "wallet": result
+        }
+    else:
+        raise HTTPException(status_code=400, detail=result.get('error', 'Failed to connect wallet'))
+
+
+@app.get("/wallet/{user_id}")
+def get_user_wallet_info(user_id: str):
+    """Get user's wallet information and balance"""
+    wallet = wallet_manager.get_user_wallet(user_id)
+    
+    if wallet:
+        return {
+            "success": True,
+            "wallet": wallet
+        }
+    else:
+        return {
+            "success": False,
+            "message": "No wallet found for this user"
+        }
+
+
+@app.get("/wallet/balance/{wallet_address}")
+def get_wallet_balance(wallet_address: str):
+    """Get wallet balance (MATIC and USDC)"""
+    balance = wallet_manager.get_wallet_balance(wallet_address)
+    return balance
+
+
+@app.get("/wallet/export-key/{user_id}")
+def export_private_key(user_id: str):
+    """
+    ⚠️ DANGEROUS: Export private key for in-app wallet
+    Only works for in-app wallets, not external wallets
+    """
+    private_key = wallet_manager.export_private_key(user_id)
+    
+    if private_key:
+        return {
+            "success": True,
+            "private_key": private_key,
+            "warning": "⚠️ KEEP THIS SAFE! Never share your private key with anyone!"
+        }
+    else:
+        raise HTTPException(
+            status_code=400, 
+            detail="Cannot export private key. Either you don't have an in-app wallet or export failed."
+        )
 
 
 # ==================== RUN SERVER ====================

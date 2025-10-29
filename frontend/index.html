@@ -24,7 +24,7 @@
                 </div>
                 <div class="wallet-badge" id="wallet-badge">
                     <span class="wallet-icon">👛</span>
-                    <span id="wallet-address">Connect Wallet</span>
+                    <span id="wallet-address">No Wallet</span>
                 </div>
                 <button class="btn-disconnect" id="disconnect-btn" style="display: none;">
                     Disconnect
@@ -36,7 +36,7 @@
     <!-- Main Container -->
     <div class="container">
         
-        <!-- Login/Register Modal (shown first) -->
+        <!-- Login/Register Modal -->
         <div class="modal" id="auth-modal">
             <div class="modal-content auth-modal">
                 <h2>Welcome to Polymarket Bot</h2>
@@ -54,16 +54,75 @@
 
                 <div id="register-form" class="auth-form" style="display: none;">
                     <input type="email" id="register-email" placeholder="Email" class="input-field">
-                    <input type="text" id="register-wallet" placeholder="Wallet Address (optional)" class="input-field">
                     <button class="btn-primary" id="register-btn">Create Account</button>
-                    <p class="trial-note">🎉 7-Day FREE Trial Included!</p>
+                    <p class="trial-note">🎉 Completely FREE Forever!</p>
                 </div>
             </div>
         </div>
 
-        <!-- Dashboard (hidden until login) -->
+        <!-- Wallet Setup Modal -->
+        <div class="modal" id="wallet-modal" style="display: none;">
+            <div class="modal-content wallet-modal">
+                <h2>🔐 Setup Your Wallet</h2>
+                <p class="subtitle">Choose how you want to trade</p>
+                
+                <div class="wallet-options">
+                    <div class="wallet-option" id="quick-start-option">
+                        <div class="option-icon">🚀</div>
+                        <h3>Quick Start</h3>
+                        <p>We create a wallet for you</p>
+                        <ul class="option-features">
+                            <li>✅ Instant setup</li>
+                            <li>✅ No MetaMask needed</li>
+                            <li>✅ Export private key anytime</li>
+                            <li>⚠️ Keep your key safe</li>
+                        </ul>
+                        <button class="btn-primary" id="create-wallet-btn">Create Wallet</button>
+                    </div>
+
+                    <div class="wallet-option" id="connect-metamask-option">
+                        <div class="option-icon">🦊</div>
+                        <h3>Connect MetaMask</h3>
+                        <p>Use your own wallet</p>
+                        <ul class="option-features">
+                            <li>✅ You control your keys</li>
+                            <li>✅ More secure</li>
+                            <li>✅ Standard Web3 practice</li>
+                            <li>⚠️ Requires MetaMask</li>
+                        </ul>
+                        <button class="btn-primary" id="connect-metamask-btn">Connect Wallet</button>
+                    </div>
+                </div>
+
+                <p class="wallet-note">💡 You can always change this later in settings</p>
+            </div>
+        </div>
+
+        <!-- Dashboard (hidden until login & wallet setup) -->
         <div id="dashboard" style="display: none;">
             
+            <!-- Wallet Info Banner -->
+            <div class="wallet-info-banner" id="wallet-info-banner">
+                <div class="wallet-info-left">
+                    <span class="wallet-type-badge" id="wallet-type-badge">In-App Wallet</span>
+                    <span class="wallet-address-display" id="wallet-address-display">0x...</span>
+                </div>
+                <div class="wallet-info-right">
+                    <div class="balance-item">
+                        <span class="balance-label">USDC:</span>
+                        <span class="balance-value" id="usdc-balance">$0.00</span>
+                    </div>
+                    <div class="balance-item">
+                        <span class="balance-label">MATIC:</span>
+                        <span class="balance-value" id="matic-balance">0.00</span>
+                    </div>
+                    <button class="btn-small" id="refresh-balance-btn">🔄 Refresh</button>
+                    <button class="btn-small btn-danger-small" id="export-key-btn" style="display: none;">
+                        🔑 Export Key
+                    </button>
+                </div>
+            </div>
+
             <!-- Top Stats Row -->
             <div class="stats-row">
                 <div class="stat-card purple">
@@ -234,37 +293,37 @@
                             <div class="rewards-list">
                                 <div class="reward-item">
                                     <div class="reward-info">
-                                        <strong>1 Month Free</strong>
+                                        <strong>1 Month Bonus</strong>
                                         <span>10,000 points</span>
                                     </div>
-                                    <button class="btn-redeem" data-points="10000" data-reward="1 Month Free">
+                                    <button class="btn-redeem" data-points="10000" data-reward="1 Month Bonus">
                                         Redeem
                                     </button>
                                 </div>
                                 <div class="reward-item">
                                     <div class="reward-info">
-                                        <strong>3 Months Free</strong>
+                                        <strong>3 Months Bonus</strong>
                                         <span>25,000 points</span>
                                     </div>
-                                    <button class="btn-redeem" data-points="25000" data-reward="3 Months Free">
+                                    <button class="btn-redeem" data-points="25000" data-reward="3 Months Bonus">
                                         Redeem
                                     </button>
                                 </div>
                                 <div class="reward-item">
                                     <div class="reward-info">
-                                        <strong>1 Year Free</strong>
+                                        <strong>1 Year Bonus</strong>
                                         <span>100,000 points</span>
                                     </div>
-                                    <button class="btn-redeem" data-points="100000" data-reward="1 Year Free">
+                                    <button class="btn-redeem" data-points="100000" data-reward="1 Year Bonus">
                                         Redeem
                                     </button>
                                 </div>
                                 <div class="reward-item lifetime">
                                     <div class="reward-info">
-                                        <strong>✨ Lifetime Access</strong>
+                                        <strong>✨ VIP Access</strong>
                                         <span>500,000 points</span>
                                     </div>
-                                    <button class="btn-redeem gold" data-points="500000" data-reward="Lifetime Access">
+                                    <button class="btn-redeem gold" data-points="500000" data-reward="VIP Access">
                                         Redeem
                                     </button>
                                 </div>

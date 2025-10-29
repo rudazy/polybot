@@ -1,5 +1,5 @@
 /**
- * Polymarket Trading Bot - Frontend JavaScript - FIXED VERSION
+ * Polymarket Trading Bot - Frontend JavaScript with Wallet Integration & Private Key Export
  */
 
 // API Base URL
@@ -8,6 +8,7 @@ const API_URL = 'http://localhost:8000';
 // Global state
 let currentUser = null;
 let currentUserId = null;
+let hasWallet = false;
 
 // ==================== INITIALIZATION ====================
 
@@ -19,12 +20,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedUser) {
         currentUser = JSON.parse(savedUser);
         currentUserId = currentUser.id;
-        showDashboard();
+        checkWalletAndProceed();
     } else {
         showAuthModal();
     }
     
-    // Initialize event listeners AFTER DOM is loaded
+    // Initialize event listeners
     setTimeout(initEventListeners, 100);
 });
 
@@ -33,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function initEventListeners() {
     console.log('Initializing event listeners...');
     
-    // Auth tabs - FIXED
+    // Auth tabs
     const loginTab = document.getElementById('login-tab');
     const registerTab = document.getElementById('register-tab');
     const loginForm = document.getElementById('login-form');
@@ -41,7 +42,6 @@ function initEventListeners() {
     
     if (loginTab) {
         loginTab.addEventListener('click', function() {
-            console.log('Login tab clicked');
             loginTab.classList.add('active');
             registerTab.classList.remove('active');
             loginForm.style.display = 'flex';
@@ -51,7 +51,6 @@ function initEventListeners() {
     
     if (registerTab) {
         registerTab.addEventListener('click', function() {
-            console.log('Register tab clicked');
             registerTab.classList.add('active');
             loginTab.classList.remove('active');
             registerForm.style.display = 'flex';
@@ -67,6 +66,17 @@ function initEventListeners() {
     if (loginBtn) loginBtn.addEventListener('click', handleLogin);
     if (registerBtn) registerBtn.addEventListener('click', handleRegister);
     if (disconnectBtn) disconnectBtn.addEventListener('click', handleDisconnect);
+    
+    // Wallet actions
+    const createWalletBtn = document.getElementById('create-wallet-btn');
+    const connectMetaMaskBtn = document.getElementById('connect-metamask-btn');
+    const refreshBalanceBtn = document.getElementById('refresh-balance-btn');
+    const exportKeyBtn = document.getElementById('export-key-btn');
+    
+    if (createWalletBtn) createWalletBtn.addEventListener('click', handleCreateInAppWallet);
+    if (connectMetaMaskBtn) connectMetaMaskBtn.addEventListener('click', handleConnectMetaMask);
+    if (refreshBalanceBtn) refreshBalanceBtn.addEventListener('click', loadWalletBalance);
+    if (exportKeyBtn) exportKeyBtn.addEventListener('click', handleExportPrivateKey);
     
     // Bot controls
     const startBtn = document.getElementById('start-bot-btn');
@@ -130,8 +140,8 @@ async function handleLogin() {
             currentUser = data.user;
             currentUserId = data.user.id;
             localStorage.setItem('polybot_user', JSON.stringify(data.user));
-            showDashboard();
             showNotification('✅ Login successful!', 'success');
+            checkWalletAndProceed();
         } else {
             showNotification('❌ Login failed. User not found.', 'error');
         }
@@ -143,7 +153,6 @@ async function handleLogin() {
 
 async function handleRegister() {
     const email = document.getElementById('register-email').value.trim();
-    const wallet = document.getElementById('register-wallet').value.trim();
     
     if (!email) {
         alert('Please enter your email');
@@ -156,10 +165,7 @@ async function handleRegister() {
         const response = await fetch(`${API_URL}/users/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                email, 
-                wallet_address: wallet || null 
-            })
+            body: JSON.stringify({ email, wallet_address: null })
         });
         
         const data = await response.json();
@@ -169,8 +175,8 @@ async function handleRegister() {
             currentUser = data.user;
             currentUserId = data.user.id;
             localStorage.setItem('polybot_user', JSON.stringify(data.user));
-            showDashboard();
-            showNotification('🎉 Account created! 7-day trial started!', 'success');
+            showNotification('🎉 Account created! Completely FREE forever!', 'success');
+            checkWalletAndProceed();
         } else {
             showNotification('❌ Registration failed. Email may already exist.', 'error');
         }
@@ -184,18 +190,247 @@ function handleDisconnect() {
     localStorage.removeItem('polybot_user');
     currentUser = null;
     currentUserId = null;
+    hasWallet = false;
     location.reload();
+}
+
+// ==================== WALLET FLOW ====================
+
+async function checkWalletAndProceed() {
+    try {
+        const response = await fetch(`${API_URL}/wallet/${currentUserId}`);
+        const data = await response.json();
+        
+        if (data.success && data.wallet) {
+            hasWallet = true;
+            showDashboard();
+            updateWalletDisplay(data.wallet);
+        } else {
+            showWalletModal();
+        }
+    } catch (error) {
+        console.error('Error checking wallet:', error);
+        showWalletModal();
+    }
+}
+
+async function handleCreateInAppWallet() {
+    try {
+        showNotification('🔐 Creating your wallet...', 'info');
+        
+        const response = await fetch(`${API_URL}/wallet/create-inapp/${currentUserId}`, {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification('✅ Wallet created successfully!', 'success');
+            hasWallet = true;
+            showDashboard();
+            loadWalletBalance();
+        } else {
+            showNotification('❌ Failed to create wallet', 'error');
+        }
+    } catch (error) {
+        console.error('Error creating wallet:', error);
+        showNotification('❌ Failed to create wallet', 'error');
+    }
+}
+
+async function handleConnectMetaMask() {
+    if (typeof window.ethereum === 'undefined') {
+        showNotification('❌ MetaMask is not installed. Please install it first.', 'error');
+        window.open('https://metamask.io/download/', '_blank');
+        return;
+    }
+    
+    try {
+        showNotification('🦊 Connecting to MetaMask...', 'info');
+        
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const walletAddress = accounts[0];
+        
+        const response = await fetch(`${API_URL}/wallet/connect-external/${currentUserId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wallet_address: walletAddress })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification('✅ MetaMask connected successfully!', 'success');
+            hasWallet = true;
+            showDashboard();
+            loadWalletBalance();
+        } else {
+            showNotification('❌ Failed to connect wallet', 'error');
+        }
+    } catch (error) {
+        console.error('Error connecting MetaMask:', error);
+        showNotification('❌ Failed to connect MetaMask', 'error');
+    }
+}
+
+async function loadWalletBalance() {
+    if (!currentUserId) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/wallet/${currentUserId}`);
+        const data = await response.json();
+        
+        if (data.success && data.wallet) {
+            updateWalletDisplay(data.wallet);
+        }
+    } catch (error) {
+        console.error('Error loading wallet balance:', error);
+    }
+}
+
+function updateWalletDisplay(wallet) {
+    const shortAddress = wallet.wallet_address.slice(0, 6) + '...' + wallet.wallet_address.slice(-4);
+    document.getElementById('wallet-address').textContent = shortAddress;
+    
+    const walletTypeBadge = document.getElementById('wallet-type-badge');
+    if (walletTypeBadge) {
+        walletTypeBadge.textContent = wallet.wallet_type === 'in-app' ? '🚀 In-App Wallet' : '🦊 MetaMask';
+    }
+    
+    const walletAddressDisplay = document.getElementById('wallet-address-display');
+    if (walletAddressDisplay) {
+        walletAddressDisplay.textContent = wallet.wallet_address;
+    }
+    
+    const usdcBalance = document.getElementById('usdc-balance');
+    if (usdcBalance) {
+        usdcBalance.textContent = `$${wallet.usdc_balance.toFixed(2)}`;
+    }
+    
+    const maticBalance = document.getElementById('matic-balance');
+    if (maticBalance) {
+        maticBalance.textContent = wallet.matic_balance.toFixed(4);
+    }
+    
+    const exportKeyBtn = document.getElementById('export-key-btn');
+    if (exportKeyBtn) {
+        if (wallet.wallet_type === 'in-app') {
+            exportKeyBtn.style.display = 'block';
+        } else {
+            exportKeyBtn.style.display = 'none';
+        }
+    }
+}
+
+// ==================== PRIVATE KEY EXPORT ====================
+
+async function handleExportPrivateKey() {
+    const confirm1 = confirm(
+        "⚠️ WARNING: You are about to export your private key!\n\n" +
+        "This is EXTREMELY DANGEROUS if not handled properly.\n\n" +
+        "Are you sure you want to continue?"
+    );
+    
+    if (!confirm1) return;
+    
+    const confirm2 = confirm(
+        "⚠️ FINAL WARNING:\n\n" +
+        "• NEVER share your private key with ANYONE\n" +
+        "• Anyone with your private key can steal ALL your funds\n" +
+        "• Make sure you're in a private location\n" +
+        "• Save it in a secure password manager\n\n" +
+        "Do you understand the risks?"
+    );
+    
+    if (!confirm2) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/wallet/export-key/${currentUserId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            showPrivateKeyModal(data.private_key);
+        } else {
+            showNotification('❌ Cannot export private key', 'error');
+        }
+    } catch (error) {
+        console.error('Error exporting private key:', error);
+        showNotification('❌ Failed to export private key', 'error');
+    }
+}
+
+function showPrivateKeyModal(privateKey) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 600px;">
+            <h2 style="color: #ef4444;">🔑 Your Private Key</h2>
+            <p style="color: #f59e0b; margin: 1rem 0;">
+                ⚠️ KEEP THIS EXTREMELY SAFE! Never share it with anyone!
+            </p>
+            
+            <div style="background: #0f0f23; padding: 1rem; border-radius: 10px; margin: 1.5rem 0; border: 1px solid #ef4444;">
+                <code id="private-key-display" style="
+                    word-break: break-all;
+                    color: #10b981;
+                    font-size: 0.9rem;
+                    display: block;
+                    font-family: 'Courier New', monospace;
+                ">${privateKey}</code>
+            </div>
+            
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button class="btn-primary" id="copy-key-btn" style="flex: 1;">
+                    📋 Copy to Clipboard
+                </button>
+                <button class="btn-danger" id="close-key-modal" style="flex: 1;">
+                    Close
+                </button>
+            </div>
+            
+            <p style="color: #a0a0c0; font-size: 0.85rem; margin-top: 1rem; text-align: center;">
+                💡 Import this key into MetaMask or any Web3 wallet to access your funds
+            </p>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    document.getElementById('copy-key-btn').addEventListener('click', () => {
+        navigator.clipboard.writeText(privateKey);
+        showNotification('✅ Private key copied to clipboard!', 'success');
+    });
+    
+    document.getElementById('close-key-modal').addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
 }
 
 // ==================== UI DISPLAY ====================
 
 function showAuthModal() {
     document.getElementById('auth-modal').style.display = 'flex';
+    document.getElementById('wallet-modal').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'none';
+}
+
+function showWalletModal() {
+    document.getElementById('auth-modal').style.display = 'none';
+    document.getElementById('wallet-modal').style.display = 'flex';
     document.getElementById('dashboard').style.display = 'none';
 }
 
 function showDashboard() {
     document.getElementById('auth-modal').style.display = 'none';
+    document.getElementById('wallet-modal').style.display = 'none';
     document.getElementById('dashboard').style.display = 'block';
     
     updateUserInterface();
@@ -204,24 +439,18 @@ function showDashboard() {
     loadActivity();
     loadSettings();
     loadPoints();
+    loadWalletBalance();
     checkBotStatus();
     
-    // Auto-refresh every 10 seconds
     setInterval(() => {
         loadStats();
         loadActivity();
         loadPoints();
+        loadWalletBalance();
     }, 10000);
 }
 
 function updateUserInterface() {
-    if (currentUser.wallet_address) {
-        const shortAddress = currentUser.wallet_address.slice(0, 6) + '...' + currentUser.wallet_address.slice(-4);
-        document.getElementById('wallet-address').textContent = shortAddress;
-    } else {
-        document.getElementById('wallet-address').textContent = currentUser.email.split('@')[0];
-    }
-    
     document.getElementById('disconnect-btn').style.display = 'block';
 }
 
@@ -592,4 +821,4 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-console.log('✅ App.js loaded successfully');
+console.log('✅ App.js with wallet integration and private key export loaded successfully');
