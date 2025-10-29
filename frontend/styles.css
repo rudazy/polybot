@@ -1099,3 +1099,187 @@ body {
     margin-top: 0.25rem;
     font-style: italic;
 }
+
+/* ==================== WHALE NOTIFICATIONS ==================== */
+.whale-notifications-container {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 400px;
+    pointer-events: none;
+}
+
+.whale-notification {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.95) 0%, rgba(59, 130, 246, 0.95) 100%);
+    border: 2px solid var(--primary-purple);
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 10px 40px rgba(124, 58, 237, 0.5), 0 0 20px rgba(124, 58, 237, 0.3);
+    animation: slideInRight 0.5s ease-out;
+    pointer-events: all;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.whale-notification::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    animation: shimmer 2s infinite;
+}
+
+.whale-notification:hover {
+    transform: translateX(-5px);
+    box-shadow: 0 15px 50px rgba(124, 58, 237, 0.7), 0 0 30px rgba(124, 58, 237, 0.5);
+}
+
+.whale-notification.dismissing {
+    animation: slideOutRight 0.5s ease-out forwards;
+}
+
+.whale-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    position: relative;
+    z-index: 1;
+}
+
+.whale-icon {
+    font-size: 1.5rem;
+    animation: pulse 2s infinite;
+}
+
+.whale-badge {
+    background: rgba(251, 191, 36, 0.9);
+    color: var(--darker-bg);
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.whale-close {
+    margin-left: auto;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.whale-close:hover {
+    background: rgba(239, 68, 68, 0.8);
+    transform: rotate(90deg);
+}
+
+.whale-content {
+    position: relative;
+    z-index: 1;
+}
+
+.whale-wallet {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--gold);
+    margin-bottom: 0.25rem;
+}
+
+.whale-action {
+    font-size: 0.9rem;
+    color: white;
+    margin-bottom: 0.5rem;
+}
+
+.whale-position {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-weight: 700;
+    margin: 0 0.25rem;
+}
+
+.whale-position.yes {
+    background: rgba(16, 185, 129, 0.3);
+    color: var(--success-green);
+    border: 1px solid var(--success-green);
+}
+
+.whale-position.no {
+    background: rgba(239, 68, 68, 0.3);
+    color: var(--danger-red);
+    border: 1px solid var(--danger-red);
+}
+
+.whale-amount {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--gold);
+}
+
+.whale-market {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.8);
+    margin-top: 0.5rem;
+    font-style: italic;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(450px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(450px);
+        opacity: 0;
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}

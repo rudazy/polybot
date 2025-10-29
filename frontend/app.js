@@ -572,6 +572,9 @@ function showDashboard() {
         loadPoints();
         loadWalletBalance();
     }, 10000);
+
+    // Start whale activity notifications
+    startWhaleActivityPolling();
 }
 
 function updateUserInterface() {
@@ -1155,6 +1158,94 @@ async function stopCopyTrading() {
         console.error('Error stopping copy trading:', error);
         showNotification('❌ Failed to stop copy trading', 'error');
     }
+}
+
+// ==================== WHALE NOTIFICATIONS ====================
+
+let whaleNotificationQueue = [];
+let lastWhaleId = 0;
+
+function showWhaleNotification(whaleData) {
+    const container = document.getElementById('whale-notifications');
+    if (!container) return;
+
+    const notification = document.createElement('div');
+    notification.className = 'whale-notification';
+    notification.dataset.whaleId = whaleData.id;
+
+    const shortWallet = whaleData.wallet.slice(0, 6) + '...' + whaleData.wallet.slice(-4);
+    const positionClass = whaleData.position.toLowerCase();
+
+    notification.innerHTML = `
+        <div class="whale-header">
+            <div class="whale-icon">🐋</div>
+            <div class="whale-badge">Whale Alert</div>
+            <button class="whale-close">×</button>
+        </div>
+        <div class="whale-content">
+            <div class="whale-wallet">${shortWallet}</div>
+            <div class="whale-action">
+                just bought <span class="whale-position ${positionClass}">${whaleData.position}</span> with
+                <span class="whale-amount">$${whaleData.amount.toLocaleString()}</span>
+            </div>
+            <div class="whale-market">${whaleData.market}</div>
+        </div>
+    `;
+
+    // Add close handler
+    const closeBtn = notification.querySelector('.whale-close');
+    closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dismissWhaleNotification(notification);
+    });
+
+    // Auto-dismiss after 10 seconds
+    setTimeout(() => {
+        dismissWhaleNotification(notification);
+    }, 10000);
+
+    container.appendChild(notification);
+
+    // Limit to 3 notifications max
+    const notifications = container.querySelectorAll('.whale-notification');
+    if (notifications.length > 3) {
+        dismissWhaleNotification(notifications[0]);
+    }
+}
+
+function dismissWhaleNotification(notification) {
+    if (!notification || notification.classList.contains('dismissing')) return;
+
+    notification.classList.add('dismissing');
+    setTimeout(() => {
+        notification.remove();
+    }, 500);
+}
+
+async function loadWhaleActivity() {
+    try {
+        const response = await fetch(`${API_URL}/whale-activity?since=${lastWhaleId}`);
+        const data = await response.json();
+
+        if (data.success && data.whales.length > 0) {
+            data.whales.forEach(whale => {
+                showWhaleNotification(whale);
+                if (whale.id > lastWhaleId) {
+                    lastWhaleId = whale.id;
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error loading whale activity:', error);
+    }
+}
+
+function startWhaleActivityPolling() {
+    // Load immediately
+    loadWhaleActivity();
+
+    // Poll every 15 seconds
+    setInterval(loadWhaleActivity, 15000);
 }
 
 // Animation styles

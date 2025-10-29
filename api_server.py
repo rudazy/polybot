@@ -10,6 +10,7 @@ from typing import Optional, List, Dict
 from datetime import datetime
 import uvicorn
 import hashlib
+import random
 
 from mongodb_database import MongoDatabase
 from polymarket_api import PolymarketAPI
@@ -39,6 +40,8 @@ wallet_manager = WalletManager(db)
 active_bots = {}  # Store active bot instances per user
 active_copy_traders = {}  # Store active copy trading instances per user
 user_networks = {}  # Store network preference per user (default: testnet)
+whale_activity_feed = []  # Store simulated whale activity
+whale_id_counter = 0  # Counter for whale activity IDs
 
 
 # Pydantic models for request/response validation
@@ -780,6 +783,74 @@ def get_copy_trading_status(user_id: str):
             "success": True,
             "is_active": False
         }
+
+
+# ==================== WHALE ACTIVITY ====================
+
+# Sample whale wallets and markets for simulation
+WHALE_WALLETS = [
+    "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+    "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
+    "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+    "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",
+    "0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6",
+    "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+]
+
+SAMPLE_MARKETS = [
+    "Will Bitcoin reach $100K by end of 2024?",
+    "Will Trump win the 2024 election?",
+    "Will Ethereum ETF be approved in 2024?",
+    "Will AI reach AGI before 2030?",
+    "Will S&P 500 hit new ATH this month?",
+    "Will Fed cut rates in next meeting?",
+    "Will unemployment rate drop below 3%?",
+    "Will Tesla stock hit $300 this year?"
+]
+
+def generate_whale_activity():
+    """Generate simulated whale activity"""
+    global whale_id_counter, whale_activity_feed
+
+    # 30% chance to generate new whale activity
+    if random.random() < 0.3:
+        whale_id_counter += 1
+
+        whale = {
+            "id": whale_id_counter,
+            "wallet": random.choice(WHALE_WALLETS),
+            "position": random.choice(["YES", "NO"]),
+            "amount": random.randint(5000, 50000),  # $5K to $50K
+            "market": random.choice(SAMPLE_MARKETS),
+            "timestamp": datetime.now().isoformat()
+        }
+
+        whale_activity_feed.append(whale)
+
+        # Keep only last 20 whale activities
+        if len(whale_activity_feed) > 20:
+            whale_activity_feed.pop(0)
+
+        return whale
+
+    return None
+
+
+@app.get("/whale-activity")
+def get_whale_activity(since: int = 0):
+    """Get whale trading activity (simulated for demo)"""
+    # Generate new whale activity randomly
+    generate_whale_activity()
+
+    # Return only new whales since the given ID
+    new_whales = [w for w in whale_activity_feed if w['id'] > since]
+
+    return {
+        "success": True,
+        "whales": new_whales
+    }
 
 
 # ==================== RUN SERVER ====================
