@@ -687,17 +687,25 @@ function createActivityItem(item) {
 
 async function loadSettings() {
     if (!currentUserId) return;
-    
+
     try {
         const response = await fetch(`${API_URL}/settings/${currentUserId}`);
         const settings = await response.json();
-        
+
         document.getElementById('category-filter').value = settings.category_filter;
         document.getElementById('probability-slider').value = settings.min_probability * 100;
         document.getElementById('prob-value').textContent = (settings.min_probability * 100) + '%';
         document.getElementById('position-size').value = settings.position_size;
         document.getElementById('max-trades').value = settings.max_daily_trades;
         document.getElementById('min-liquidity').value = settings.min_liquidity;
+
+        // Load stop loss and take profit
+        if (settings.stop_loss !== undefined) {
+            document.getElementById('stop-loss').value = settings.stop_loss;
+        }
+        if (settings.take_profit !== undefined) {
+            document.getElementById('take-profit').value = settings.take_profit;
+        }
     } catch (error) {
         console.error('Error loading settings:', error);
     }
@@ -809,15 +817,18 @@ async function saveSettings() {
         category_filter: document.getElementById('category-filter').value,
         position_size: parseFloat(document.getElementById('position-size').value),
         max_daily_trades: parseInt(document.getElementById('max-trades').value),
-        min_liquidity: parseFloat(document.getElementById('min-liquidity').value)
+        min_liquidity: parseFloat(document.getElementById('min-liquidity').value),
+        stop_loss: parseFloat(document.getElementById('stop-loss').value),
+        take_profit: parseFloat(document.getElementById('take-profit').value)
     };
-    
+
     try {
         await fetch(`${API_URL}/settings/${currentUserId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(settings)
         });
+        showNotification('✅ Settings saved with stop loss and take profit', 'success');
     } catch (error) {
         console.error('Error saving settings:', error);
     }

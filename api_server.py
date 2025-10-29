@@ -61,6 +61,8 @@ class SettingsUpdate(BaseModel):
     max_daily_trades: Optional[int] = None
     min_liquidity: Optional[float] = None
     bot_enabled: Optional[bool] = None
+    stop_loss: Optional[float] = None
+    take_profit: Optional[float] = None
 
 
 class TradeCreate(BaseModel):

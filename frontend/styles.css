@@ -1069,3 +1069,33 @@ body {
     margin-bottom: 1rem;
     font-weight: 600;
 }
+
+/* ==================== RISK MANAGEMENT SECTION ==================== */
+.risk-management-section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--warning-orange);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.section-title::before {
+    content: '⚠️';
+    font-size: 1.2rem;
+}
+
+.field-hint {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+    font-style: italic;
+}

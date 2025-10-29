@@ -91,7 +91,9 @@ class MongoDatabase:
                 "max_daily_trades": 10,
                 "min_liquidity": 10000.0,
                 "bot_enabled": False,
-                "notifications_enabled": True
+                "notifications_enabled": True,
+                "stop_loss": 10.0,  # Default 10% stop loss
+                "take_profit": 20.0  # Default 20% take profit
             }
             self.settings.insert_one(settings_doc)
             
