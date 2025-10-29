@@ -880,3 +880,160 @@ body {
     background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
     box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4) !important;
 }
+
+/* ==================== NETWORK SWITCHER ==================== */
+.network-switcher {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.network-label {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.btn-network {
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-network:hover {
+    background: rgba(124, 58, 237, 0.2);
+    border-color: var(--primary-purple);
+    transform: scale(1.05);
+}
+
+/* ==================== TOP TRADERS ==================== */
+.traders-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.trader-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    margin-bottom: 0.75rem;
+    transition: all 0.3s ease;
+}
+
+.trader-card:hover {
+    background: rgba(124, 58, 237, 0.1);
+    border-color: var(--primary-purple);
+    transform: translateX(5px);
+}
+
+.trader-rank {
+    font-size: 1.5rem;
+    font-weight: 700;
+    min-width: 40px;
+    text-align: center;
+}
+
+.trader-info {
+    flex: 1;
+}
+
+.trader-address {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+}
+
+.trader-stats {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.25rem;
+}
+
+.win-rate {
+    padding: 0.25rem 0.75rem;
+    border-radius: 15px;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.win-rate.high {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success-green);
+}
+
+.win-rate.medium {
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--warning-orange);
+}
+
+.trades-count {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.trader-profit {
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.trader-profit.positive {
+    color: var(--success-green);
+}
+
+.trader-profit.negative {
+    color: var(--danger-red);
+}
+
+.btn-copy-small {
+    padding: 0.5rem 1rem;
+    background: var(--gradient-purple);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.85rem;
+}
+
+.btn-copy-small:hover {
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(124, 58, 237, 0.4);
+}
+
+/* ==================== COPY TRADING ==================== */
+.copy-trade-info {
+    margin-bottom: 1.5rem;
+}
+
+.info-text {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 1rem;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 8px;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.copy-trade-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    font-weight: 600;
+}

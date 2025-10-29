@@ -9,6 +9,8 @@ const API_URL = 'http://localhost:8000';
 let currentUser = null;
 let currentUserId = null;
 let hasWallet = false;
+let currentNetwork = 'testnet'; // Default to testnet for safety
+let copyTradingActive = false;
 
 // ==================== INITIALIZATION ====================
 
@@ -93,6 +95,20 @@ function initEventListeners() {
     const searchInput = document.getElementById('market-search');
     if (refreshBtn) refreshBtn.addEventListener('click', loadMarkets);
     if (searchInput) searchInput.addEventListener('input', handleMarketSearch);
+
+    // Network switcher
+    const networkToggleBtn = document.getElementById('network-toggle-btn');
+    if (networkToggleBtn) networkToggleBtn.addEventListener('click', handleNetworkSwitch);
+
+    // Top traders
+    const refreshTradersBtn = document.getElementById('refresh-traders-btn');
+    if (refreshTradersBtn) refreshTradersBtn.addEventListener('click', loadTopTraders);
+
+    // Copy trading
+    const startCopyBtn = document.getElementById('start-copy-btn');
+    const stopCopyBtn = document.getElementById('stop-copy-btn');
+    if (startCopyBtn) startCopyBtn.addEventListener('click', startCopyTrading);
+    if (stopCopyBtn) stopCopyBtn.addEventListener('click', stopCopyTrading);
     
     // Probability slider
     const probSlider = document.getElementById('probability-slider');
@@ -441,6 +457,8 @@ function showDashboard() {
     loadPoints();
     loadWalletBalance();
     checkBotStatus();
+    loadTopTraders();
+    loadNetworkStatus();
     
     setInterval(() => {
         loadStats();
@@ -805,6 +823,221 @@ function showNotification(message, type = 'info') {
         notification.style.animation = 'slideOut 0.3s ease';
         setTimeout(() => notification.remove(), 300);
     }, 3000);
+}
+
+// ==================== NETWORK SWITCHING ====================
+
+async function loadNetworkStatus() {
+    try {
+        const response = await fetch(`${API_URL}/network/status/${currentUserId}`);
+        const data = await response.json();
+
+        if (data.success) {
+            currentNetwork = data.network;
+            updateNetworkDisplay(data.network);
+        }
+    } catch (error) {
+        console.error('Error loading network status:', error);
+        // Default to testnet if error
+        updateNetworkDisplay('testnet');
+    }
+}
+
+async function handleNetworkSwitch() {
+    const newNetwork = currentNetwork === 'testnet' ? 'mainnet' : 'testnet';
+
+    const confirmSwitch = confirm(
+        newNetwork === 'mainnet'
+            ? '⚠️ WARNING: You are about to switch to MAINNET.\n\nThis will use REAL money and REAL funds.\n\nMake sure you have:\n✓ Tested everything on testnet\n✓ Sufficient MATIC for gas fees\n✓ Real USDC for trading\n\nContinue to mainnet?'
+            : '🧪 Switching to TESTNET (Safe Mode)\n\nYou will use test tokens only.\nPerfect for testing strategies!\n\nContinue?'
+    );
+
+    if (!confirmSwitch) return;
+
+    try {
+        showNotification(`Switching to ${newNetwork}...`, 'info');
+
+        const response = await fetch(`${API_URL}/network/switch/${currentUserId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ network: newNetwork })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            currentNetwork = newNetwork;
+            updateNetworkDisplay(newNetwork);
+            showNotification(`✅ Switched to ${newNetwork === 'mainnet' ? 'MAINNET' : 'TESTNET'}!`, 'success');
+            loadWalletBalance(); // Refresh balances for new network
+        } else {
+            showNotification('❌ Failed to switch network', 'error');
+        }
+    } catch (error) {
+        console.error('Error switching network:', error);
+        showNotification('❌ Failed to switch network', 'error');
+    }
+}
+
+function updateNetworkDisplay(network) {
+    const networkStatus = document.getElementById('network-status');
+    if (networkStatus) {
+        if (network === 'mainnet') {
+            networkStatus.innerHTML = '🟢 Mainnet';
+            networkStatus.style.color = '#10b981';
+        } else {
+            networkStatus.innerHTML = '🧪 Testnet';
+            networkStatus.style.color = '#f59e0b';
+        }
+    }
+}
+
+// ==================== TOP TRADERS ====================
+
+async function loadTopTraders() {
+    const container = document.getElementById('top-traders-list');
+    if (!container) return;
+
+    container.innerHTML = '<div class="loading">Loading top traders...</div>';
+
+    try {
+        const response = await fetch(`${API_URL}/traders/top?limit=5`);
+        const data = await response.json();
+
+        if (data.success && data.traders.length > 0) {
+            container.innerHTML = '';
+
+            // Update copy trader dropdown
+            const copySelect = document.getElementById('copy-trader-select');
+            if (copySelect) {
+                copySelect.innerHTML = '<option value="">Choose a trader...</option>';
+                data.traders.forEach(trader => {
+                    const option = document.createElement('option');
+                    option.value = trader.wallet_address;
+                    option.textContent = `${trader.wallet_address.slice(0, 8)}... - ${trader.win_rate.toFixed(1)}% WR`;
+                    copySelect.appendChild(option);
+                });
+            }
+
+            data.traders.forEach((trader, index) => {
+                const traderCard = createTraderCard(trader, index + 1);
+                container.appendChild(traderCard);
+            });
+        } else {
+            container.innerHTML = '<p class="no-data">No traders found yet</p>';
+        }
+    } catch (error) {
+        console.error('Error loading top traders:', error);
+        container.innerHTML = '<p class="no-data">Failed to load traders</p>';
+    }
+}
+
+function createTraderCard(trader, rank) {
+    const div = document.createElement('div');
+    div.className = 'trader-card';
+
+    const rankEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+    const shortAddress = trader.wallet_address.slice(0, 6) + '...' + trader.wallet_address.slice(-4);
+
+    div.innerHTML = `
+        <div class="trader-rank">${rankEmoji}</div>
+        <div class="trader-info">
+            <div class="trader-address">${shortAddress}</div>
+            <div class="trader-stats">
+                <span class="win-rate ${trader.win_rate >= 70 ? 'high' : 'medium'}">
+                    ${trader.win_rate.toFixed(1)}% WR
+                </span>
+                <span class="trades-count">${trader.total_trades} trades</span>
+            </div>
+            <div class="trader-profit ${trader.total_profit >= 0 ? 'positive' : 'negative'}">
+                ${trader.total_profit >= 0 ? '+' : ''}$${trader.total_profit.toFixed(2)}
+            </div>
+        </div>
+        <button class="btn-copy-small" data-address="${trader.wallet_address}">
+            Copy
+        </button>
+    `;
+
+    // Add click handler for copy button
+    const copyBtn = div.querySelector('.btn-copy-small');
+    copyBtn.addEventListener('click', () => {
+        document.getElementById('copy-trader-select').value = trader.wallet_address;
+        showNotification(`Selected trader ${shortAddress}`, 'success');
+    });
+
+    return div;
+}
+
+// ==================== COPY TRADING ====================
+
+async function startCopyTrading() {
+    const selectedTrader = document.getElementById('copy-trader-select').value;
+    const copyAmount = parseFloat(document.getElementById('copy-amount').value);
+    const maxTrades = parseInt(document.getElementById('max-copy-trades').value);
+
+    if (!selectedTrader) {
+        showNotification('❌ Please select a trader to copy', 'error');
+        return;
+    }
+
+    if (!copyAmount || copyAmount <= 0) {
+        showNotification('❌ Please enter a valid copy amount', 'error');
+        return;
+    }
+
+    try {
+        showNotification('Starting copy trading...', 'info');
+
+        const response = await fetch(`${API_URL}/copy-trading/start/${currentUserId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                target_wallet: selectedTrader,
+                copy_amount: copyAmount,
+                max_trades_per_day: maxTrades
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            copyTradingActive = true;
+            document.getElementById('copy-trade-status').style.display = 'flex';
+            document.getElementById('copy-trade-status').innerHTML = `
+                <span class="status-dot online"></span>
+                <span>Copying: ${selectedTrader.slice(0, 8)}...</span>
+            `;
+            document.getElementById('start-copy-btn').style.display = 'none';
+            document.getElementById('stop-copy-btn').style.display = 'block';
+            showNotification('✅ Copy trading started!', 'success');
+        } else {
+            showNotification('❌ ' + data.message, 'error');
+        }
+    } catch (error) {
+        console.error('Error starting copy trading:', error);
+        showNotification('❌ Failed to start copy trading', 'error');
+    }
+}
+
+async function stopCopyTrading() {
+    try {
+        const response = await fetch(`${API_URL}/copy-trading/stop/${currentUserId}`, {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            copyTradingActive = false;
+            document.getElementById('copy-trade-status').style.display = 'none';
+            document.getElementById('start-copy-btn').style.display = 'block';
+            document.getElementById('stop-copy-btn').style.display = 'none';
+            showNotification('⏸ Copy trading stopped', 'info');
+        }
+    } catch (error) {
+        console.error('Error stopping copy trading:', error);
+        showNotification('❌ Failed to stop copy trading', 'error');
+    }
 }
 
 // Animation styles

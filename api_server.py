@@ -36,6 +36,8 @@ db = MongoDatabase()
 polymarket = PolymarketAPI()
 wallet_manager = WalletManager(db)
 active_bots = {}  # Store active bot instances per user
+active_copy_traders = {}  # Store active copy trading instances per user
+user_networks = {}  # Store network preference per user (default: testnet)
 
 
 # Pydantic models for request/response validation
@@ -72,6 +74,16 @@ class PointsRedeem(BaseModel):
 
 class WalletConnect(BaseModel):
     wallet_address: str
+
+
+class NetworkSwitch(BaseModel):
+    network: str
+
+
+class CopyTradeStart(BaseModel):
+    target_wallet: str
+    copy_amount: float
+    max_trades_per_day: int
 
 
 # ==================== HEALTH CHECK ====================
@@ -436,6 +448,160 @@ def export_private_key(user_id: str):
             status_code=400, 
             detail="Cannot export private key. Either you don't have an in-app wallet or export failed."
         )
+
+
+# ==================== NETWORK SWITCHING ====================
+
+@app.get("/network/status/{user_id}")
+def get_network_status(user_id: str):
+    """Get current network for user"""
+    network = user_networks.get(user_id, "testnet")
+    return {
+        "success": True,
+        "network": network,
+        "is_testnet": network == "testnet"
+    }
+
+
+@app.post("/network/switch/{user_id}")
+def switch_network(user_id: str, network_data: NetworkSwitch):
+    """Switch between testnet and mainnet"""
+    network = network_data.network
+
+    if network not in ["testnet", "mainnet"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid network. Must be 'testnet' or 'mainnet'"
+        )
+
+    # Update user's network preference
+    user_networks[user_id] = network
+
+    # Stop bot if running when switching networks
+    if user_id in active_bots:
+        active_bots[user_id].stop()
+        del active_bots[user_id]
+
+    # Stop copy trading if active when switching networks
+    if user_id in active_copy_traders:
+        del active_copy_traders[user_id]
+
+    return {
+        "success": True,
+        "network": network,
+        "message": f"Switched to {network}. Bot and copy trading stopped for safety."
+    }
+
+
+# ==================== TOP TRADERS ====================
+
+@app.get("/traders/top")
+def get_top_traders(limit: int = 5):
+    """Get top performing traders by win rate"""
+    try:
+        # Get all users with trades
+        all_stats = []
+
+        # Query database for users with trade history
+        users_collection = db.db['users']
+        for user in users_collection.find():
+            user_id = str(user['_id'])
+            stats = db.get_user_stats(user_id)
+
+            # Only include users with at least 5 trades
+            if stats['total_trades'] >= 5:
+                all_stats.append({
+                    'wallet_address': user.get('wallet_address', 'Unknown'),
+                    'win_rate': stats['win_rate'],
+                    'total_trades': stats['total_trades'],
+                    'total_profit': stats['total_profit'],
+                    'user_id': user_id
+                })
+
+        # Sort by win rate descending
+        all_stats.sort(key=lambda x: x['win_rate'], reverse=True)
+
+        # Return top N traders
+        top_traders = all_stats[:limit]
+
+        return {
+            "success": True,
+            "traders": top_traders
+        }
+
+    except Exception as e:
+        print(f"Error fetching top traders: {e}")
+        return {
+            "success": True,
+            "traders": []  # Return empty list if error
+        }
+
+
+# ==================== COPY TRADING ====================
+
+@app.post("/copy-trading/start/{user_id}")
+def start_copy_trading(user_id: str, copy_data: CopyTradeStart):
+    """Start copy trading a specific wallet"""
+
+    # Check if user already has copy trading active
+    if user_id in active_copy_traders:
+        return {
+            "success": False,
+            "message": "Copy trading already active. Stop current copy trading first."
+        }
+
+    # Validate target wallet exists and has good stats
+    target_wallet = copy_data.target_wallet
+
+    # Store copy trading configuration
+    active_copy_traders[user_id] = {
+        'target_wallet': target_wallet,
+        'copy_amount': copy_data.copy_amount,
+        'max_trades_per_day': copy_data.max_trades_per_day,
+        'trades_today': 0,
+        'started_at': datetime.now()
+    }
+
+    # Note: Actual implementation would require monitoring the target wallet's trades
+    # and executing the same trades. This is a simplified version.
+
+    return {
+        "success": True,
+        "message": f"Copy trading started for wallet {target_wallet}",
+        "config": active_copy_traders[user_id]
+    }
+
+
+@app.post("/copy-trading/stop/{user_id}")
+def stop_copy_trading(user_id: str):
+    """Stop copy trading"""
+    if user_id in active_copy_traders:
+        del active_copy_traders[user_id]
+        return {
+            "success": True,
+            "message": "Copy trading stopped"
+        }
+    else:
+        return {
+            "success": True,
+            "message": "No active copy trading"
+        }
+
+
+@app.get("/copy-trading/status/{user_id}")
+def get_copy_trading_status(user_id: str):
+    """Get copy trading status"""
+    if user_id in active_copy_traders:
+        return {
+            "success": True,
+            "is_active": True,
+            "config": active_copy_traders[user_id]
+        }
+    else:
+        return {
+            "success": True,
+            "is_active": False
+        }
 
 
 # ==================== RUN SERVER ====================

@@ -106,6 +106,12 @@
                 <div class="wallet-info-left">
                     <span class="wallet-type-badge" id="wallet-type-badge">In-App Wallet</span>
                     <span class="wallet-address-display" id="wallet-address-display">0x...</span>
+                    <div class="network-switcher">
+                        <span class="network-label">Network:</span>
+                        <button class="btn-network" id="network-toggle-btn">
+                            <span id="network-status">🧪 Testnet</span>
+                        </button>
+                    </div>
                 </div>
                 <div class="wallet-info-right">
                     <div class="balance-item">
@@ -261,6 +267,57 @@
                             <input type="text" id="market-search" placeholder="Search markets..." class="input-field search-input">
                             <div id="markets-container" class="markets-list">
                                 <div class="loading">Loading markets...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Top Traders -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>🏆 Top 5 Traders</h2>
+                            <button class="btn-refresh" id="refresh-traders-btn">🔄</button>
+                        </div>
+                        <div class="card-body">
+                            <div id="top-traders-list" class="traders-list">
+                                <div class="loading">Loading top traders...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Copy Trading -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>👥 Copy Trading</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="copy-trade-info">
+                                <p class="info-text">Follow successful traders automatically</p>
+                            </div>
+                            <div class="form-group">
+                                <label>Select Trader to Copy</label>
+                                <select id="copy-trader-select" class="input-field">
+                                    <option value="">Choose a trader...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Copy Amount per Trade ($)</label>
+                                <input type="number" id="copy-amount" value="50" class="input-field" placeholder="50">
+                            </div>
+                            <div class="form-group">
+                                <label>Max Copy Trades per Day</label>
+                                <input type="number" id="max-copy-trades" value="5" class="input-field" placeholder="5">
+                            </div>
+                            <div class="copy-trade-status" id="copy-trade-status" style="display: none;">
+                                <span class="status-dot offline"></span>
+                                <span>Copy Trading: Inactive</span>
+                            </div>
+                            <div class="button-group">
+                                <button class="btn-success" id="start-copy-btn">
+                                    <span>▶</span> Start Copy Trading
+                                </button>
+                                <button class="btn-danger" id="stop-copy-btn" style="display: none;">
+                                    <span>⏸</span> Stop Copy Trading
+                                </button>
                             </div>
                         </div>
                     </div>
