@@ -82,8 +82,8 @@ class FaucetManager:
         """
         try:
             from web3 import Web3
-        checksummed_address = Web3.to_checksum_address(wallet_address)
-        balances = self.blockchain.get_all_balances(checksummed_address)
+            checksummed_address = Web3.to_checksum_address(wallet_address)
+            balances = self.blockchain.get_all_balances(checksummed_address)
             
             matic_balance = balances['matic']
             usdc_balance = balances['usdc']

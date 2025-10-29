@@ -1,6 +1,7 @@
 """
 Blockchain Manager for Polymarket Trading Bot
 Handles real Web3 interactions with Polygon network
+NOW WITH TESTNET/MAINNET SWITCHING!
 """
 
 from web3 import Web3
@@ -9,13 +10,28 @@ import secrets
 from typing import Dict, Optional
 from decimal import Decimal
 
-# Polygon Network Configuration
-POLYGON_RPC_URL = "https://polygon-rpc.com"  # Free public RPC
-POLYGON_CHAIN_ID = 137
+# Network Configurations
+NETWORKS = {
+    "mainnet": {
+        "name": "Polygon Mainnet",
+        "rpc_url": "https://polygon-rpc.com",
+        "chain_id": 137,
+        "usdc_address": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+        "explorer": "https://polygonscan.com",
+        "currency_symbol": "MATIC"
+    },
+    "testnet": {
+        "name": "Mumbai Testnet", 
+        "rpc_url": "https://rpc-mumbai.maticvigil.com",
+        "chain_id": 80001,
+        "usdc_address": "0x0FA8781a83E46826621b3BC094Ea2A0212e71B23",  # Test USDC
+        "explorer": "https://mumbai.polygonscan.com",
+        "currency_symbol": "MATIC (Test)"
+    }
+}
 
-# Token Addresses on Polygon
-USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"  # USDC on Polygon
-MATIC_ADDRESS = "0x0000000000000000000000000000000000001010"  # Native MATIC
+# Default network - START WITH TESTNET FOR SAFETY!
+DEFAULT_NETWORK = "testnet"
 
 # Minimal ERC20 ABI (for balance checking and transfers)
 ERC20_ABI = [
@@ -49,25 +65,97 @@ ERC20_ABI = [
 class BlockchainManager:
     """
     Manages real blockchain interactions with Polygon network
+    Supports both TESTNET (Mumbai) and MAINNET (Polygon)
     """
     
-    def __init__(self):
-        """Initialize Web3 connection to Polygon"""
-        self.w3 = Web3(Web3.HTTPProvider(POLYGON_RPC_URL))
-        self.chain_id = POLYGON_CHAIN_ID
+    def __init__(self, network: str = DEFAULT_NETWORK):
+        """
+        Initialize Web3 connection to Polygon
+        
+        Args:
+            network: "testnet" for Mumbai or "mainnet" for Polygon
+        """
+        if network not in NETWORKS:
+            raise ValueError(f"Invalid network: {network}. Use 'testnet' or 'mainnet'")
+        
+        self.network = network
+        self.network_config = NETWORKS[network]
+        self.w3 = Web3(Web3.HTTPProvider(self.network_config["rpc_url"]))
+        self.chain_id = self.network_config["chain_id"]
         
         # Check connection
         if self.w3.is_connected():
-            print(f"✅ Connected to Polygon Network (Chain ID: {self.chain_id})")
+            print(f"✅ Connected to {self.network_config['name']} (Chain ID: {self.chain_id})")
             print(f"📊 Latest Block: {self.w3.eth.block_number}")
+            if network == "testnet":
+                print(f"🧪 TESTNET MODE - Using test tokens (no real money)")
+            else:
+                print(f"💰 MAINNET MODE - Using REAL tokens!")
         else:
-            print("❌ Failed to connect to Polygon network")
+            print(f"❌ Failed to connect to {self.network_config['name']}")
         
         # Initialize USDC contract
         self.usdc_contract = self.w3.eth.contract(
-            address=Web3.to_checksum_address(USDC_ADDRESS),
+            address=Web3.to_checksum_address(self.network_config["usdc_address"]),
             abi=ERC20_ABI
         )
+    
+    # ==================== NETWORK SWITCHING ====================
+    
+    def switch_network(self, network: str) -> bool:
+        """
+        Switch between testnet and mainnet
+        
+        Args:
+            network: "testnet" or "mainnet"
+            
+        Returns:
+            Success status
+        """
+        try:
+            if network not in NETWORKS:
+                print(f"❌ Invalid network: {network}")
+                return False
+            
+            print(f"🔄 Switching to {NETWORKS[network]['name']}...")
+            self.__init__(network)
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error switching network: {e}")
+            return False
+    
+    def get_network_info(self) -> Dict:
+        """Get current network information"""
+        return {
+            "network": self.network,
+            "name": self.network_config["name"],
+            "chain_id": self.chain_id,
+            "explorer": self.network_config["explorer"],
+            "is_testnet": self.network == "testnet",
+            "currency_symbol": self.network_config["currency_symbol"]
+        }
+    
+    def get_faucet_info(self) -> Optional[Dict]:
+        """Get faucet information for testnet"""
+        if self.network != "testnet":
+            return None
+        
+        return {
+            "message": "Get free test tokens from these faucets:",
+            "faucets": [
+                {
+                    "name": "Mumbai Faucet",
+                    "url": "https://faucet.polygon.technology/",
+                    "tokens": ["MATIC"]
+                },
+                {
+                    "name": "Alchemy Faucet",
+                    "url": "https://mumbaifaucet.com/",
+                    "tokens": ["MATIC"]
+                }
+            ]
+        }
     
     # ==================== WALLET CREATION ====================
     
@@ -85,12 +173,14 @@ class BlockchainManager:
             # Create account from private key
             account = Account.from_key(private_key)
             
-            print(f"🔐 Created new wallet: {account.address}")
+            network_info = f" ({self.network_config['name']})"
+            print(f"🔐 Created new wallet{network_info}: {account.address}")
             
             return {
                 "success": True,
                 "address": account.address,
-                "private_key": private_key
+                "private_key": private_key,
+                "network": self.network
             }
             
         except Exception as e:
@@ -122,7 +212,8 @@ class BlockchainManager:
             
             return {
                 "success": True,
-                "address": account.address
+                "address": account.address,
+                "network": self.network
             }
             
         except Exception as e:
@@ -197,9 +288,10 @@ class BlockchainManager:
         
         return {
             "address": address,
+            "network": self.network,
             "matic": matic_balance,
             "usdc": usdc_balance,
-            "matic_usd": matic_balance * 0.5,  # Approximate USD value (update with real price)
+            "matic_usd": matic_balance * 0.5,  # Approximate USD value
             "total_usd": (matic_balance * 0.5) + usdc_balance
         }
     
@@ -243,6 +335,7 @@ class BlockchainManager:
             tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
             
             print(f"✅ Transaction sent! Hash: {tx_hash.hex()}")
+            print(f"🔗 View on explorer: {self.network_config['explorer']}/tx/{tx_hash.hex()}")
             
             # Wait for confirmation (optional)
             receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
@@ -251,7 +344,9 @@ class BlockchainManager:
                 "success": True,
                 "tx_hash": tx_hash.hex(),
                 "status": receipt['status'],
-                "block_number": receipt['blockNumber']
+                "block_number": receipt['blockNumber'],
+                "explorer_url": f"{self.network_config['explorer']}/tx/{tx_hash.hex()}",
+                "network": self.network
             }
             
         except Exception as e:
@@ -300,6 +395,7 @@ class BlockchainManager:
             tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
             
             print(f"✅ USDC transaction sent! Hash: {tx_hash.hex()}")
+            print(f"🔗 View on explorer: {self.network_config['explorer']}/tx/{tx_hash.hex()}")
             
             # Wait for confirmation
             receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
@@ -308,7 +404,9 @@ class BlockchainManager:
                 "success": True,
                 "tx_hash": tx_hash.hex(),
                 "status": receipt['status'],
-                "block_number": receipt['blockNumber']
+                "block_number": receipt['blockNumber'],
+                "explorer_url": f"{self.network_config['explorer']}/tx/{tx_hash.hex()}",
+                "network": self.network
             }
             
         except Exception as e:
@@ -341,7 +439,8 @@ class BlockchainManager:
             
             return {
                 "gas_price_wei": gas_price_wei,
-                "gas_price_gwei": float(gas_price_gwei)
+                "gas_price_gwei": float(gas_price_gwei),
+                "network": self.network
             }
         except Exception as e:
             print(f"❌ Error getting gas price: {e}")
@@ -349,40 +448,57 @@ class BlockchainManager:
 
 
 def test_blockchain_manager():
-    """Test blockchain manager functionality"""
-    print("🧪 Testing Blockchain Manager...\n")
+    """Test blockchain manager functionality with network switching"""
+    print("🧪 Testing Blockchain Manager with Network Switching...\n")
     
-    # Initialize
-    blockchain = BlockchainManager()
+    # Test 1: Start with TESTNET (default)
+    print("=" * 60)
+    print("TEST 1: Creating wallet on TESTNET")
+    print("=" * 60)
+    blockchain_testnet = BlockchainManager("testnet")
     
-    # Test 1: Create wallet
-    print("\n📝 Test 1: Creating new wallet...")
-    wallet = blockchain.create_wallet()
+    wallet = blockchain_testnet.create_wallet()
     if wallet['success']:
-        print(f"✅ Wallet Address: {wallet['address']}")
-        print(f"   Private Key: {wallet['private_key'][:20]}...{wallet['private_key'][-10:]}")
+        print(f"✅ Testnet Wallet: {wallet['address']}")
+        print(f"   Network: {wallet['network']}")
         
-        # Test 2: Check balances
-        print("\n📝 Test 2: Checking balances...")
-        balances = blockchain.get_all_balances(wallet['address'])
-        print(f"✅ MATIC Balance: {balances['matic']}")
-        print(f"✅ USDC Balance: {balances['usdc']}")
-        print(f"✅ Total USD Value: ${balances['total_usd']:.2f}")
+        # Check testnet balance
+        balances = blockchain_testnet.get_all_balances(wallet['address'])
+        print(f"✅ Testnet MATIC: {balances['matic']}")
+        print(f"✅ Testnet USDC: {balances['usdc']}")
+        
+        # Get faucet info
+        faucet = blockchain_testnet.get_faucet_info()
+        if faucet:
+            print(f"\n💧 {faucet['message']}")
+            for f in faucet['faucets']:
+                print(f"   - {f['name']}: {f['url']}")
     
-    # Test 3: Check a known address with balance (Vitalik's address for example)
-    print("\n📝 Test 3: Checking real address...")
+    # Test 2: Switch to MAINNET
+    print("\n" + "=" * 60)
+    print("TEST 2: Switching to MAINNET")
+    print("=" * 60)
+    blockchain_mainnet = BlockchainManager("mainnet")
+    
+    # Check Vitalik's address on mainnet
     vitalik = "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
-    balances = blockchain.get_all_balances(vitalik)
-    print(f"✅ Address: {vitalik}")
-    print(f"   MATIC Balance: {balances['matic']}")
-    print(f"   USDC Balance: {balances['usdc']}")
+    balances_main = blockchain_mainnet.get_all_balances(vitalik)
+    print(f"✅ Mainnet Address: {vitalik}")
+    print(f"   MATIC Balance: {balances_main['matic']}")
+    print(f"   USDC Balance: {balances_main['usdc']}")
     
-    # Test 4: Get gas price
-    print("\n📝 Test 4: Getting gas price...")
-    gas = blockchain.get_gas_price()
-    print(f"✅ Current Gas Price: {gas['gas_price_gwei']:.2f} Gwei")
+    # Test 3: Network info
+    print("\n" + "=" * 60)
+    print("TEST 3: Network Information")
+    print("=" * 60)
+    testnet_info = blockchain_testnet.get_network_info()
+    mainnet_info = blockchain_mainnet.get_network_info()
     
-    print("\n✅ Blockchain Manager test complete!")
+    print(f"Testnet: {testnet_info['name']} (Chain ID: {testnet_info['chain_id']})")
+    print(f"Mainnet: {mainnet_info['name']} (Chain ID: {mainnet_info['chain_id']})")
+    
+    print("\n✅ Blockchain Manager with Network Switching test complete!")
+    print("\n💡 TIP: Users can safely test on TESTNET before using MAINNET!")
 
 
 if __name__ == "__main__":
