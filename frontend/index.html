@@ -49,11 +49,15 @@
 
                 <div id="login-form" class="auth-form">
                     <input type="email" id="login-email" placeholder="Email" class="input-field">
+                    <input type="password" id="login-password" placeholder="Password" class="input-field">
                     <button class="btn-primary" id="login-btn">Login</button>
+                    <a href="#" class="forgot-password-link" id="forgot-password-link">Forgot Password?</a>
                 </div>
 
                 <div id="register-form" class="auth-form" style="display: none;">
                     <input type="email" id="register-email" placeholder="Email" class="input-field">
+                    <input type="password" id="register-password" placeholder="Create Password" class="input-field">
+                    <input type="password" id="register-password-confirm" placeholder="Confirm Password" class="input-field">
                     <button class="btn-primary" id="register-btn">Create Account</button>
                     <p class="trial-note">🎉 Completely FREE Forever!</p>
                 </div>
@@ -65,7 +69,7 @@
             <div class="modal-content wallet-modal">
                 <h2>🔐 Setup Your Wallet</h2>
                 <p class="subtitle">Choose how you want to trade</p>
-                
+
                 <div class="wallet-options">
                     <div class="wallet-option" id="quick-start-option">
                         <div class="option-icon">🚀</div>
@@ -95,6 +99,24 @@
                 </div>
 
                 <p class="wallet-note">💡 You can always change this later in settings</p>
+            </div>
+        </div>
+
+        <!-- Forgot Password Modal -->
+        <div class="modal" id="forgot-password-modal" style="display: none;">
+            <div class="modal-content auth-modal">
+                <h2>🔑 Reset Password</h2>
+                <p class="subtitle">Enter your email and new password</p>
+
+                <div class="auth-form">
+                    <input type="email" id="reset-email" placeholder="Email" class="input-field">
+                    <input type="password" id="reset-new-password" placeholder="New Password" class="input-field">
+                    <input type="password" id="reset-confirm-password" placeholder="Confirm New Password" class="input-field">
+                    <div class="button-group" style="display: flex; gap: 1rem;">
+                        <button class="btn-primary" id="reset-password-btn">Reset Password</button>
+                        <button class="btn-secondary" id="cancel-reset-btn">Cancel</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -205,13 +227,8 @@
                             </div>
 
                             <div class="form-group">
-                                <label>Min Liquidity</label>
-                                <select id="min-liquidity" class="input-field">
-                                    <option value="10000">$10K+</option>
-                                    <option value="50000">$50K+</option>
-                                    <option value="100000">$100K+</option>
-                                    <option value="500000">$500K+</option>
-                                </select>
+                                <label>Min Liquidity ($)</label>
+                                <input type="number" id="min-liquidity" value="10000" class="input-field" placeholder="10000" min="0" step="1000">
                             </div>
 
                             <div class="button-group">

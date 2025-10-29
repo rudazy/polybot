@@ -64,10 +64,16 @@ function initEventListeners() {
     const loginBtn = document.getElementById('login-btn');
     const registerBtn = document.getElementById('register-btn');
     const disconnectBtn = document.getElementById('disconnect-btn');
-    
+    const forgotPasswordLink = document.getElementById('forgot-password-link');
+    const resetPasswordBtn = document.getElementById('reset-password-btn');
+    const cancelResetBtn = document.getElementById('cancel-reset-btn');
+
     if (loginBtn) loginBtn.addEventListener('click', handleLogin);
     if (registerBtn) registerBtn.addEventListener('click', handleRegister);
     if (disconnectBtn) disconnectBtn.addEventListener('click', handleDisconnect);
+    if (forgotPasswordLink) forgotPasswordLink.addEventListener('click', showForgotPasswordModal);
+    if (resetPasswordBtn) resetPasswordBtn.addEventListener('click', handlePasswordReset);
+    if (cancelResetBtn) cancelResetBtn.addEventListener('click', hideForgotPasswordModal);
     
     // Wallet actions
     const createWalletBtn = document.getElementById('create-wallet-btn');
@@ -134,24 +140,30 @@ function initEventListeners() {
 
 async function handleLogin() {
     const email = document.getElementById('login-email').value.trim();
-    
+    const password = document.getElementById('login-password').value;
+
     if (!email) {
         alert('Please enter your email');
         return;
     }
-    
+
+    if (!password) {
+        alert('Please enter your password');
+        return;
+    }
+
     console.log('Attempting login for:', email);
-    
+
     try {
         const response = await fetch(`${API_URL}/users/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
+            body: JSON.stringify({ email, password })
         });
-        
+
         const data = await response.json();
         console.log('Login response:', data);
-        
+
         if (data.success) {
             currentUser = data.user;
             currentUserId = data.user.id;
@@ -159,7 +171,7 @@ async function handleLogin() {
             showNotification('✅ Login successful!', 'success');
             checkWalletAndProceed();
         } else {
-            showNotification('❌ Login failed. User not found.', 'error');
+            showNotification('❌ Login failed. ' + (data.message || 'Invalid credentials.'), 'error');
         }
     } catch (error) {
         console.error('Login error:', error);
@@ -169,24 +181,41 @@ async function handleLogin() {
 
 async function handleRegister() {
     const email = document.getElementById('register-email').value.trim();
-    
+    const password = document.getElementById('register-password').value;
+    const passwordConfirm = document.getElementById('register-password-confirm').value;
+
     if (!email) {
         alert('Please enter your email');
         return;
     }
-    
+
+    if (!password) {
+        alert('Please enter a password');
+        return;
+    }
+
+    if (password.length < 6) {
+        alert('Password must be at least 6 characters');
+        return;
+    }
+
+    if (password !== passwordConfirm) {
+        alert('Passwords do not match');
+        return;
+    }
+
     console.log('Attempting registration for:', email);
-    
+
     try {
         const response = await fetch(`${API_URL}/users/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, wallet_address: null })
+            body: JSON.stringify({ email, password, wallet_address: null })
         });
-        
+
         const data = await response.json();
         console.log('Register response:', data);
-        
+
         if (data.success) {
             currentUser = data.user;
             currentUserId = data.user.id;
@@ -194,7 +223,7 @@ async function handleRegister() {
             showNotification('🎉 Account created! Completely FREE forever!', 'success');
             checkWalletAndProceed();
         } else {
-            showNotification('❌ Registration failed. Email may already exist.', 'error');
+            showNotification('❌ Registration failed. ' + (data.message || 'Email may already exist.'), 'error');
         }
     } catch (error) {
         console.error('Registration error:', error);
@@ -208,6 +237,70 @@ function handleDisconnect() {
     currentUserId = null;
     hasWallet = false;
     location.reload();
+}
+
+function showForgotPasswordModal(e) {
+    e.preventDefault();
+    document.getElementById('auth-modal').style.display = 'none';
+    document.getElementById('forgot-password-modal').style.display = 'flex';
+}
+
+function hideForgotPasswordModal() {
+    document.getElementById('forgot-password-modal').style.display = 'none';
+    document.getElementById('auth-modal').style.display = 'flex';
+}
+
+async function handlePasswordReset() {
+    const email = document.getElementById('reset-email').value.trim();
+    const newPassword = document.getElementById('reset-new-password').value;
+    const confirmPassword = document.getElementById('reset-confirm-password').value;
+
+    if (!email) {
+        alert('Please enter your email');
+        return;
+    }
+
+    if (!newPassword) {
+        alert('Please enter a new password');
+        return;
+    }
+
+    if (newPassword.length < 6) {
+        alert('Password must be at least 6 characters');
+        return;
+    }
+
+    if (newPassword !== confirmPassword) {
+        alert('Passwords do not match');
+        return;
+    }
+
+    try {
+        showNotification('Resetting password...', 'info');
+
+        const response = await fetch(`${API_URL}/users/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, new_password: newPassword })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification('✅ Password reset successful! Please login.', 'success');
+            // Clear the form
+            document.getElementById('reset-email').value = '';
+            document.getElementById('reset-new-password').value = '';
+            document.getElementById('reset-confirm-password').value = '';
+            // Go back to login
+            hideForgotPasswordModal();
+        } else {
+            showNotification('❌ ' + (data.message || 'Password reset failed'), 'error');
+        }
+    } catch (error) {
+        console.error('Password reset error:', error);
+        showNotification('❌ Password reset failed. Please check API server.', 'error');
+    }
 }
 
 // ==================== WALLET FLOW ====================
@@ -346,9 +439,9 @@ async function handleExportPrivateKey() {
         "This is EXTREMELY DANGEROUS if not handled properly.\n\n" +
         "Are you sure you want to continue?"
     );
-    
+
     if (!confirm1) return;
-    
+
     const confirm2 = confirm(
         "⚠️ FINAL WARNING:\n\n" +
         "• NEVER share your private key with ANYONE\n" +
@@ -357,17 +450,30 @@ async function handleExportPrivateKey() {
         "• Save it in a secure password manager\n\n" +
         "Do you understand the risks?"
     );
-    
+
     if (!confirm2) return;
-    
+
+    // Prompt for password verification
+    const password = prompt("Enter your password to verify:");
+
+    if (!password) {
+        showNotification('❌ Password required to export private key', 'error');
+        return;
+    }
+
     try {
-        const response = await fetch(`${API_URL}/wallet/export-key/${currentUserId}`);
+        const response = await fetch(`${API_URL}/wallet/export-key/${currentUserId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        });
+
         const data = await response.json();
-        
+
         if (data.success) {
             showPrivateKeyModal(data.private_key);
         } else {
-            showNotification('❌ Cannot export private key', 'error');
+            showNotification('❌ ' + (data.message || 'Cannot export private key'), 'error');
         }
     } catch (error) {
         console.error('Error exporting private key:', error);

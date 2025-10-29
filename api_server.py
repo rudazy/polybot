@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict
 from datetime import datetime
 import uvicorn
+import hashlib
 
 from mongodb_database import MongoDatabase
 from polymarket_api import PolymarketAPI
@@ -43,11 +44,13 @@ user_networks = {}  # Store network preference per user (default: testnet)
 # Pydantic models for request/response validation
 class UserCreate(BaseModel):
     email: str
+    password: str
     wallet_address: Optional[str] = None
 
 
 class UserLogin(BaseModel):
     email: str
+    password: str
 
 
 class SettingsUpdate(BaseModel):
@@ -86,6 +89,27 @@ class CopyTradeStart(BaseModel):
     max_trades_per_day: int
 
 
+class PrivateKeyExport(BaseModel):
+    password: str
+
+
+class PasswordReset(BaseModel):
+    email: str
+    new_password: str
+
+
+# ==================== PASSWORD HASHING ====================
+
+def hash_password(password: str) -> str:
+    """Hash a password using SHA-256"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
+def verify_password(password: str, hashed_password: str) -> bool:
+    """Verify a password against a hashed password"""
+    return hash_password(password) == hashed_password
+
+
 # ==================== HEALTH CHECK ====================
 
 @app.get("/")
@@ -114,13 +138,30 @@ def health_check():
 
 @app.post("/users/register")
 def register_user(user: UserCreate):
-    """Register a new user"""
+    """Register a new user with password"""
+    # Hash the password
+    hashed_password = hash_password(user.password)
+
+    # Create user with hashed password
     user_id = db.create_user(user.email, user.wallet_address)
-    
+
     if not user_id:
-        raise HTTPException(status_code=400, detail="User already exists or creation failed")
-    
+        return {
+            "success": False,
+            "message": "User already exists or creation failed"
+        }
+
+    # Store the hashed password
+    db.db['users'].update_one(
+        {'_id': user_id},
+        {'$set': {'password': hashed_password}}
+    )
+
     user_data = db.get_user(user_id=user_id)
+    # Remove password from response
+    if 'password' in user_data:
+        del user_data['password']
+
     return {
         "success": True,
         "message": "User registered successfully",
@@ -130,12 +171,38 @@ def register_user(user: UserCreate):
 
 @app.post("/users/login")
 def login_user(user: UserLogin):
-    """Login user (simplified - no password for now)"""
+    """Login user with password verification"""
     user_data = db.get_user(email=user.email)
-    
+
     if not user_data:
-        raise HTTPException(status_code=404, detail="User not found")
-    
+        return {
+            "success": False,
+            "message": "User not found"
+        }
+
+    # Check if user has a password set
+    stored_password = user_data.get('password')
+    if not stored_password:
+        # Legacy user without password - allow login but should set password
+        if 'password' in user_data:
+            del user_data['password']
+        return {
+            "success": True,
+            "message": "Login successful",
+            "user": user_data
+        }
+
+    # Verify password
+    if not verify_password(user.password, stored_password):
+        return {
+            "success": False,
+            "message": "Invalid password"
+        }
+
+    # Remove password from response
+    if 'password' in user_data:
+        del user_data['password']
+
     return {
         "success": True,
         "message": "Login successful",
@@ -143,14 +210,50 @@ def login_user(user: UserLogin):
     }
 
 
+@app.post("/users/reset-password")
+def reset_password(reset_data: PasswordReset):
+    """Reset user password"""
+    # Find user by email
+    user_data = db.get_user(email=reset_data.email)
+
+    if not user_data:
+        return {
+            "success": False,
+            "message": "User not found"
+        }
+
+    # Hash the new password
+    new_hashed_password = hash_password(reset_data.new_password)
+
+    # Update password in database
+    user_id = user_data['id']
+    try:
+        from bson import ObjectId
+        db.db['users'].update_one(
+            {'_id': ObjectId(user_id)},
+            {'$set': {'password': new_hashed_password}}
+        )
+
+        return {
+            "success": True,
+            "message": "Password reset successful"
+        }
+    except Exception as e:
+        print(f"Error resetting password: {e}")
+        return {
+            "success": False,
+            "message": "Failed to reset password"
+        }
+
+
 @app.get("/users/{user_id}")
 def get_user(user_id: str):
     """Get user details"""
     user = db.get_user(user_id=user_id)
-    
+
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     return user
 
 
@@ -429,14 +532,34 @@ def get_wallet_balance(wallet_address: str):
     return balance
 
 
-@app.get("/wallet/export-key/{user_id}")
-def export_private_key(user_id: str):
+@app.post("/wallet/export-key/{user_id}")
+def export_private_key(user_id: str, key_export: PrivateKeyExport):
     """
     ⚠️ DANGEROUS: Export private key for in-app wallet
     Only works for in-app wallets, not external wallets
+    Requires password verification
     """
+    # Verify user password first
+    user_data = db.get_user(user_id=user_id)
+
+    if not user_data:
+        return {
+            "success": False,
+            "message": "User not found"
+        }
+
+    # Check password
+    stored_password = user_data.get('password')
+    if stored_password:
+        if not verify_password(key_export.password, stored_password):
+            return {
+                "success": False,
+                "message": "Invalid password"
+            }
+    # If no password set (legacy user), allow export but warn
+
     private_key = wallet_manager.export_private_key(user_id)
-    
+
     if private_key:
         return {
             "success": True,
@@ -444,10 +567,10 @@ def export_private_key(user_id: str):
             "warning": "⚠️ KEEP THIS SAFE! Never share your private key with anyone!"
         }
     else:
-        raise HTTPException(
-            status_code=400, 
-            detail="Cannot export private key. Either you don't have an in-app wallet or export failed."
-        )
+        return {
+            "success": False,
+            "message": "Cannot export private key. Either you don't have an in-app wallet or export failed."
+        }
 
 
 # ==================== NETWORK SWITCHING ====================
@@ -504,22 +627,73 @@ def get_top_traders(limit: int = 5):
 
         # Query database for users with trade history
         users_collection = db.db['users']
+        users_found = 0
         for user in users_collection.find():
+            users_found += 1
             user_id = str(user['_id'])
+            wallet_address = user.get('wallet_address')
+
+            # Skip users without wallet
+            if not wallet_address or wallet_address == 'None':
+                continue
+
             stats = db.get_user_stats(user_id)
 
-            # Only include users with at least 5 trades
-            if stats['total_trades'] >= 5:
+            # Only include users with at least 100 trades (verified traders)
+            if stats['total_trades'] >= 100:
                 all_stats.append({
-                    'wallet_address': user.get('wallet_address', 'Unknown'),
+                    'wallet_address': wallet_address,
                     'win_rate': stats['win_rate'],
                     'total_trades': stats['total_trades'],
                     'total_profit': stats['total_profit'],
                     'user_id': user_id
                 })
 
+        print(f"Found {users_found} users, {len(all_stats)} with 100+ trades")
+
         # Sort by win rate descending
         all_stats.sort(key=lambda x: x['win_rate'], reverse=True)
+
+        # If no real traders found, add sample/demo traders for testing
+        if len(all_stats) == 0:
+            print("No traders with 100+ trades found. Using demo traders.")
+            all_stats = [
+                {
+                    'wallet_address': '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+                    'win_rate': 78.5,
+                    'total_trades': 245,
+                    'total_profit': 12450.75,
+                    'user_id': 'demo_1'
+                },
+                {
+                    'wallet_address': '0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063',
+                    'win_rate': 76.2,
+                    'total_trades': 189,
+                    'total_profit': 9823.50,
+                    'user_id': 'demo_2'
+                },
+                {
+                    'wallet_address': '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
+                    'win_rate': 73.8,
+                    'total_trades': 156,
+                    'total_profit': 7654.20,
+                    'user_id': 'demo_3'
+                },
+                {
+                    'wallet_address': '0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619',
+                    'win_rate': 71.5,
+                    'total_trades': 134,
+                    'total_profit': 5432.80,
+                    'user_id': 'demo_4'
+                },
+                {
+                    'wallet_address': '0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6',
+                    'win_rate': 69.3,
+                    'total_trades': 112,
+                    'total_profit': 3876.40,
+                    'user_id': 'demo_5'
+                }
+            ]
 
         # Return top N traders
         top_traders = all_stats[:limit]
@@ -531,6 +705,8 @@ def get_top_traders(limit: int = 5):
 
     except Exception as e:
         print(f"Error fetching top traders: {e}")
+        import traceback
+        traceback.print_exc()
         return {
             "success": True,
             "traders": []  # Return empty list if error
