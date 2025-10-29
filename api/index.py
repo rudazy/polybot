@@ -10,6 +10,7 @@ sys.path.insert(0, parent_dir)
 
 # Import the FastAPI app
 from api_server import app
+from mangum import Mangum
 
-# Export for Vercel
-app = app
+# Mangum handler for Vercel
+handler = Mangum(app, lifespan="off")

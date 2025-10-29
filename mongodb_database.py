@@ -17,12 +17,16 @@ class MongoDatabase:
     def __init__(self, connection_string: str = None):
         """
         Initialize MongoDB connection
-        
+
         Args:
             connection_string: MongoDB connection URI
         """
         if not connection_string:
-            connection_string = "mongodb+srv://luda:1234luda@cluster0.byvm5pb.mongodb.net/?appName=Cluster0"
+            # Try to get from environment variable first
+            connection_string = os.environ.get('MONGODB_URI')
+            if not connection_string:
+                # Fallback to default (for development)
+                connection_string = "mongodb+srv://luda:1234luda@cluster0.byvm5pb.mongodb.net/?appName=Cluster0"
         
         try:
             self.client = MongoClient(connection_string)
@@ -37,13 +41,13 @@ class MongoDatabase:
             
             # Test connection
             self.client.server_info()
-            print("✅ Connected to MongoDB Atlas!")
-            
+            print("[OK] Connected to MongoDB Atlas!")
+
             # Create indexes
             self.create_indexes()
-            
+
         except Exception as e:
-            print(f"❌ MongoDB connection error: {e}")
+            print(f"[ERROR] MongoDB connection error: {e}")
             raise
     
     def create_indexes(self):
@@ -54,9 +58,9 @@ class MongoDatabase:
             self.trades.create_index("user_id")
             self.settings.create_index("user_id", unique=True)
             self.points.create_index("user_id")
-            print("✅ Database indexes created!")
+            print("[OK] Database indexes created!")
         except Exception as e:
-            print(f"⚠️ Index creation warning: {e}")
+            print(f"[WARNING] Index creation warning: {e}")
     
     # USER OPERATIONS
     
@@ -97,11 +101,11 @@ class MongoDatabase:
             }
             self.settings.insert_one(settings_doc)
             
-            print(f"✅ User created: {email} (ID: {user_id})")
+            print(f"[OK] User created: {email} (ID: {user_id})")
             return user_id
-            
+
         except Exception as e:
-            print(f"❌ Error creating user: {e}")
+            print(f"[ERROR] Error creating user: {e}")
             return None
     
     def get_user(self, user_id: str = None, email: str = None) -> Optional[Dict]:
@@ -122,7 +126,7 @@ class MongoDatabase:
             return user
             
         except Exception as e:
-            print(f"❌ Error getting user: {e}")
+            print(f"[ERROR] Error getting user: {e}")
             return None
     
     def update_user_subscription(self, user_id: str, status: str, end_date: datetime = None):
@@ -140,10 +144,10 @@ class MongoDatabase:
                 }
             )
             
-            print(f"✅ Updated subscription for user {user_id}: {status}")
-            
+            print(f"[OK] Updated subscription for user {user_id}: {status}")
+
         except Exception as e:
-            print(f"❌ Error updating subscription: {e}")
+            print(f"[ERROR] Error updating subscription: {e}")
     
     # TRADE OPERATIONS
     
@@ -183,11 +187,11 @@ class MongoDatabase:
                 {"$inc": {"total_volume": trade_data.get('amount', 0)}}
             )
             
-            print(f"✅ Trade created: ID {trade_id}")
+            print(f"[OK] Trade created: ID {trade_id}")
             return trade_id
-            
+
         except Exception as e:
-            print(f"❌ Error creating trade: {e}")
+            print(f"[ERROR] Error creating trade: {e}")
             return None
     
     def get_user_trades(self, user_id: str, limit: int = 10) -> List[Dict]:
@@ -204,7 +208,7 @@ class MongoDatabase:
             return trades
             
         except Exception as e:
-            print(f"❌ Error getting trades: {e}")
+            print(f"[ERROR] Error getting trades: {e}")
             return []
     
     def close_trade(self, trade_id: str, exit_price: float, profit: float):
@@ -224,10 +228,10 @@ class MongoDatabase:
                 }
             )
             
-            print(f"✅ Trade {trade_id} closed. Profit: ${profit:.2f}")
-            
+            print(f"[OK] Trade {trade_id} closed. Profit: ${profit:.2f}")
+
         except Exception as e:
-            print(f"❌ Error closing trade: {e}")
+            print(f"[ERROR] Error closing trade: {e}")
     
     # SETTINGS OPERATIONS
     
@@ -243,7 +247,7 @@ class MongoDatabase:
             return settings
             
         except Exception as e:
-            print(f"❌ Error getting settings: {e}")
+            print(f"[ERROR] Error getting settings: {e}")
             return None
     
     def update_settings(self, user_id: str, settings_data: Dict):
@@ -254,10 +258,10 @@ class MongoDatabase:
                 {"$set": settings_data}
             )
             
-            print(f"✅ Settings updated for user {user_id}")
-            
+            print(f"[OK] Settings updated for user {user_id}")
+
         except Exception as e:
-            print(f"❌ Error updating settings: {e}")
+            print(f"[ERROR] Error updating settings: {e}")
     
     # POINTS OPERATIONS
     
@@ -283,7 +287,7 @@ class MongoDatabase:
             )
             
         except Exception as e:
-            print(f"❌ Error adding points: {e}")
+            print(f"[ERROR] Error adding points: {e}")
     
     def redeem_points(self, user_id: str, amount: int, reward: str) -> bool:
         """Redeem points for rewards"""
@@ -309,14 +313,14 @@ class MongoDatabase:
                 }
                 self.points.insert_one(points_doc)
                 
-                print(f"✅ User {user_id} redeemed {amount} points for {reward}")
+                print(f"[OK] User {user_id} redeemed {amount} points for {reward}")
                 return True
             else:
-                print(f"❌ Insufficient points for user {user_id}")
+                print(f"[ERROR] Insufficient points for user {user_id}")
                 return False
-                
+
         except Exception as e:
-            print(f"❌ Error redeeming points: {e}")
+            print(f"[ERROR] Error redeeming points: {e}")
             return False
     
     # STATISTICS
@@ -347,19 +351,19 @@ class MongoDatabase:
             return stats
             
         except Exception as e:
-            print(f"❌ Error getting stats: {e}")
+            print(f"[ERROR] Error getting stats: {e}")
             return {}
     
     def close(self):
         """Close database connection"""
         if self.client:
             self.client.close()
-            print("✅ MongoDB connection closed")
+            print("[OK] MongoDB connection closed")
 
 
 def test_mongodb():
     """Test MongoDB operations"""
-    print("🧪 Testing MongoDB Database...\n")
+    print("[TEST] Testing MongoDB Database...\n")
     
     db = MongoDatabase()
     
@@ -368,7 +372,7 @@ def test_mongodb():
     user_id = db.create_user("mongodb_test@example.com", "0x987654321")
     
     if user_id:
-        print(f"✅ User created with ID: {user_id}\n")
+        print(f"[OK] User created with ID: {user_id}\n")
         
         # Test 2: Get user
         print("Test 2: Retrieving user...")
@@ -400,7 +404,7 @@ def test_mongodb():
         print(f"Total volume: ${user['total_volume']}\n")
     
     db.close()
-    print("✅ MongoDB test complete!")
+    print("[OK] MongoDB test complete!")
 
 
 if __name__ == "__main__":
