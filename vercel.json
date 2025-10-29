@@ -7,25 +7,28 @@
       "config": {
         "maxLambdaSize": "50mb"
       }
+    },
+    {
+      "src": "frontend/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "api/index.py"
+      "dest": "/api/index.py"
     },
     {
-      "src": "/(.*\\.(js|css|html|ico|png|jpg|jpeg|svg|gif))",
-      "dest": "/frontend/$1"
+      "src": "/app.js",
+      "dest": "/frontend/app.js"
+    },
+    {
+      "src": "/styles.css",
+      "dest": "/frontend/styles.css"
     },
     {
       "src": "/",
       "dest": "/frontend/index.html"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/frontend/$1"
     }
-  ],
-  "outputDirectory": "frontend"
+  ]
 }
