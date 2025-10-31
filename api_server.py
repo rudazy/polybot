@@ -28,8 +28,11 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://polybot-gamma.vercel.app",
         "https://polybot.finance",
+        "https://www.polybot.finance",
+        "http://polybot.finance",
+        "http://www.polybot.finance",
+        "https://polybot-gamma.vercel.app",
         "http://localhost:3000",
         "http://localhost:8000"
     ],
