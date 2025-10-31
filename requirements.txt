@@ -3,3 +3,5 @@ uvicorn
 pymongo
 requests
 python-dotenv
+web3
+eth-account
