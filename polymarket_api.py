@@ -16,19 +16,44 @@ class PolymarketAPI:
         self.headers = {"Content-Type": "application/json"}
     
     def get_markets(self, limit: int = 20, active: bool = True) -> List[Dict]:
-        """Fetch active markets from Polymarket"""
+        """Fetch trending markets from Polymarket sorted by volume"""
         try:
             endpoint = f"{self.gamma_url}/markets"
-            params = {"limit": limit, "active": active, "closed": False}
-            
+            params = {
+                "limit": limit,
+                "active": active,
+                "closed": False,
+                "order": "volume24hr",  # Sort by 24hr volume for trending markets
+                "ascending": False
+            }
+
             response = requests.get(endpoint, params=params, headers=self.headers)
             response.raise_for_status()
-            
+
             markets = response.json()
             return markets if isinstance(markets, list) else []
-            
+
         except requests.exceptions.RequestException as e:
             print(f"Error fetching markets: {e}")
+            return []
+
+    def search_markets(self, query: str, limit: int = 10) -> List[Dict]:
+        """Search markets by keyword"""
+        try:
+            # First get all active markets
+            all_markets = self.get_markets(limit=100, active=True)
+
+            # Filter by query in question
+            query_lower = query.lower()
+            filtered = [
+                m for m in all_markets
+                if query_lower in m.get('question', '').lower()
+            ]
+
+            return filtered[:limit]
+
+        except Exception as e:
+            print(f"Error searching markets: {e}")
             return []
     
     def format_market_data(self, market: Dict) -> Dict:
