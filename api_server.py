@@ -839,7 +839,7 @@ def generate_whale_activity():
             "id": whale_id_counter,
             "wallet": random.choice(WHALE_WALLETS),
             "position": random.choice(["YES", "NO"]),
-            "amount": random.randint(5000, 50000),  # $5K to $50K
+            "amount": random.randint(25000, 100000),  # $25K to $100K (only large buys)
             "market": random.choice(SAMPLE_MARKETS),
             "timestamp": datetime.now().isoformat()
         }
@@ -861,8 +861,11 @@ def get_whale_activity(since: int = 0):
     # Generate new whale activity randomly
     generate_whale_activity()
 
-    # Return only new whales since the given ID
+    # Return only new whales since the given ID (limit to 2 max)
     new_whales = [w for w in whale_activity_feed if w['id'] > since]
+
+    # Limit to maximum 2 whale alerts at once
+    new_whales = new_whales[-2:] if len(new_whales) > 2 else new_whales
 
     return {
         "success": True,

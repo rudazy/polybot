@@ -1,19 +1,19 @@
-/* ==================== ROOT VARIABLES (Polymarket Colors) ==================== */
+/* ==================== ROOT VARIABLES (Light Blue & White Theme) ==================== */
 :root {
-    --primary-purple: #7c3aed;
-    --primary-blue: #3b82f6;
-    --dark-bg: #0f0f23;
-    --darker-bg: #08081a;
-    --card-bg: #1a1a2e;
-    --border-color: #2d2d44;
-    --text-primary: #ffffff;
-    --text-secondary: #a0a0c0;
+    --primary-blue: #2563eb;
+    --primary-light-blue: #3b82f6;
+    --light-bg: #f8fafc;
+    --lighter-bg: #ffffff;
+    --card-bg: #ffffff;
+    --border-color: #e2e8f0;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
     --success-green: #10b981;
     --danger-red: #ef4444;
     --warning-orange: #f59e0b;
     --gold: #fbbf24;
-    --gradient-purple: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
-    --gradient-blue: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+    --gradient-blue: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+    --gradient-light-blue: linear-gradient(135deg, #60a5fa 0%, #93c5fd 100%);
     --gradient-green: linear-gradient(135deg, #10b981 0%, #34d399 100%);
     --gradient-orange: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
 }
@@ -27,7 +27,7 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    background: linear-gradient(135deg, var(--dark-bg) 0%, var(--darker-bg) 100%);
+    background: linear-gradient(135deg, #f0f9ff 0%, #ffffff 100%);
     color: var(--text-primary);
     min-height: 100vh;
     overflow-x: hidden;
@@ -35,13 +35,14 @@ body {
 
 /* ==================== NAVBAR ==================== */
 .navbar {
-    background: rgba(26, 26, 46, 0.8);
+    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--border-color);
     padding: 1rem 2rem;
     position: sticky;
     top: 0;
     z-index: 1000;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .nav-container {
@@ -55,7 +56,7 @@ body {
 .logo {
     font-size: 1.5rem;
     font-weight: 800;
-    background: var(--gradient-purple);
+    background: var(--gradient-blue);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     display: flex;
@@ -74,13 +75,14 @@ body {
 }
 
 .points-display {
-    background: var(--gradient-purple);
+    background: var(--gradient-blue);
     padding: 0.5rem 1rem;
     border-radius: 20px;
     font-weight: 600;
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    color: white;
 }
 
 .wallet-badge {
@@ -93,7 +95,7 @@ body {
 }
 
 .wallet-badge:hover {
-    border-color: var(--primary-purple);
+    border-color: var(--primary-blue);
     transform: translateY(-2px);
 }
 
@@ -136,7 +138,7 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.9);
+    background: rgba(0, 0, 0, 0.5);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -152,6 +154,7 @@ body {
     width: 90%;
     animation: slideUp 0.4s ease;
     position: relative;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
 }
 
 @keyframes slideUp {
@@ -168,7 +171,7 @@ body {
 .auth-modal h2 {
     font-size: 2rem;
     margin-bottom: 0.5rem;
-    background: var(--gradient-purple);
+    background: var(--gradient-blue);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -197,7 +200,7 @@ body {
 }
 
 .auth-tab.active {
-    background: var(--gradient-purple);
+    background: var(--gradient-blue);
     border-color: transparent;
     color: white;
 }
@@ -246,11 +249,11 @@ body {
 }
 
 .stat-card.purple::before {
-    background: var(--gradient-purple);
+    background: var(--gradient-blue);
 }
 
 .stat-card.blue::before {
-    background: var(--gradient-blue);
+    background: var(--gradient-light-blue);
 }
 
 .stat-card.green::before {
@@ -261,9 +264,23 @@ body {
     background: var(--gradient-orange);
 }
 
+.stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 15px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
 .stat-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 10px 30px rgba(124, 58, 237, 0.3);
+    box-shadow: 0 10px 30px rgba(59, 130, 246, 0.2);
 }
 
 .stat-icon {
@@ -297,8 +314,18 @@ body {
     margin-bottom: 1.5rem;
 }
 
+.card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 15px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
 .card:hover {
-    box-shadow: 0 8px 25px rgba(124, 58, 237, 0.2);
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.15);
 }
 
 .card-header {
@@ -307,7 +334,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(124, 58, 237, 0.05);
+    background: rgba(59, 130, 246, 0.03);
 }
 
 .card-header h2 {
@@ -365,7 +392,7 @@ body {
 .input-field {
     width: 100%;
     padding: 0.75rem 1rem;
-    background: var(--darker-bg);
+    background: #f8fafc;
     border: 1px solid var(--border-color);
     border-radius: 10px;
     color: var(--text-primary);
@@ -375,15 +402,16 @@ body {
 
 .input-field:focus {
     outline: none;
-    border-color: var(--primary-purple);
-    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    background: white;
 }
 
 .slider {
     width: 100%;
     height: 6px;
     border-radius: 5px;
-    background: var(--darker-bg);
+    background: #e2e8f0;
     outline: none;
     cursor: pointer;
 }
@@ -393,16 +421,16 @@ body {
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: var(--gradient-purple);
+    background: var(--gradient-blue);
     cursor: pointer;
-    box-shadow: 0 2px 10px rgba(124, 58, 237, 0.5);
+    box-shadow: 0 2px 10px rgba(59, 130, 246, 0.4);
 }
 
 /* ==================== BUTTONS ==================== */
 .btn-primary {
     width: 100%;
     padding: 0.875rem 1.5rem;
-    background: var(--gradient-purple);
+    background: var(--gradient-blue);
     border: none;
     border-radius: 10px;
     color: white;
@@ -414,7 +442,7 @@ body {
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 25px rgba(124, 58, 237, 0.4);
+    box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4);
 }
 
 .btn-success {
@@ -466,9 +494,20 @@ body {
     transition: all 0.3s ease;
 }
 
+.btn-refresh {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: var(--text-primary);
+}
+
 .btn-refresh:hover {
-    background: var(--primary-purple);
+    background: var(--primary-blue);
     border-color: transparent;
+    color: white;
 }
 
 .btn-disconnect {
@@ -495,8 +534,8 @@ body {
 }
 
 .btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: var(--primary-purple);
+    background: rgba(59, 130, 246, 0.05);
+    border-color: var(--primary-blue);
 }
 
 .forgot-password-link {
@@ -510,7 +549,7 @@ body {
 }
 
 .forgot-password-link:hover {
-    color: var(--primary-purple);
+    color: var(--primary-light-blue);
     text-decoration: underline;
 }
 
@@ -766,16 +805,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-    background: var(--darker-bg);
+    background: #f1f5f9;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: var(--primary-purple);
+    background: var(--primary-blue);
     border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--primary-blue);
+    background: var(--primary-light-blue);
 }
 
 /* ==================== RESPONSIVE ==================== */

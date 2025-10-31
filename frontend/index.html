@@ -4,8 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Polymarket Trading Bot - Automated Trading Dashboard</title>
+
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Automated Polymarket trading bot with copy trading, whale alerts, and smart risk management. Trade prediction markets with confidence.">
+    <meta name="keywords" content="polymarket, trading bot, prediction markets, automated trading, copy trading">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://polybot.finance/">
+    <meta property="og:title" content="Polymarket Trading Bot - Automated Trading Dashboard">
+    <meta property="og:description" content="Automated Polymarket trading bot with copy trading, whale alerts, and smart risk management.">
+    <meta property="og:image" content="https://polybot.finance/og-image.png">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://polybot.finance/">
+    <meta property="twitter:title" content="Polymarket Trading Bot - Automated Trading Dashboard">
+    <meta property="twitter:description" content="Automated Polymarket trading bot with copy trading, whale alerts, and smart risk management.">
+    <meta property="twitter:image" content="https://polybot.finance/og-image.png">
+
     <link rel="stylesheet" href="styles.css">
-    <link rel="icon" href="https://polymarket.com/favicon.ico">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
 </head>
 <body>
     <!-- Navigation Bar -->
@@ -13,17 +33,14 @@
         <div class="nav-container">
             <div class="nav-left">
                 <h1 class="logo">
-                    <span class="logo-icon">📊</span>
                     Polymarket Bot
                 </h1>
             </div>
             <div class="nav-right">
                 <div class="points-display" id="points-display" style="display: none;">
-                    <span class="points-icon">⭐</span>
                     <span id="user-points">0</span> Points
                 </div>
                 <div class="wallet-badge" id="wallet-badge" style="display: none;">
-                    <span class="wallet-icon">👛</span>
                     <span id="wallet-address">No Wallet</span>
                 </div>
                 <button class="btn-primary" id="login-register-btn">
@@ -66,7 +83,7 @@
                     <input type="password" id="register-password" placeholder="Create Password" class="input-field">
                     <input type="password" id="register-password-confirm" placeholder="Confirm Password" class="input-field">
                     <button class="btn-primary" id="register-btn">Create Account</button>
-                    <p class="trial-note">🎉 Completely FREE Forever!</p>
+                    <p class="trial-note">Completely FREE Forever!</p>
                 </div>
             </div>
         </div>
@@ -74,45 +91,43 @@
         <!-- Wallet Setup Modal -->
         <div class="modal" id="wallet-modal" style="display: none;">
             <div class="modal-content wallet-modal">
-                <h2>🔐 Setup Your Wallet</h2>
+                <h2>Setup Your Wallet</h2>
                 <p class="subtitle">Choose how you want to trade</p>
 
                 <div class="wallet-options">
                     <div class="wallet-option" id="quick-start-option">
-                        <div class="option-icon">🚀</div>
                         <h3>Quick Start</h3>
                         <p>We create a wallet for you</p>
                         <ul class="option-features">
-                            <li>✅ Instant setup</li>
-                            <li>✅ No MetaMask needed</li>
-                            <li>✅ Export private key anytime</li>
-                            <li>⚠️ Keep your key safe</li>
+                            <li>Instant setup</li>
+                            <li>No MetaMask needed</li>
+                            <li>Export private key anytime</li>
+                            <li>Keep your key safe</li>
                         </ul>
                         <button class="btn-primary" id="create-wallet-btn">Create Wallet</button>
                     </div>
 
                     <div class="wallet-option" id="connect-metamask-option">
-                        <div class="option-icon">🦊</div>
                         <h3>Connect MetaMask</h3>
                         <p>Use your own wallet</p>
                         <ul class="option-features">
-                            <li>✅ You control your keys</li>
-                            <li>✅ More secure</li>
-                            <li>✅ Standard Web3 practice</li>
-                            <li>⚠️ Requires MetaMask</li>
+                            <li>You control your keys</li>
+                            <li>More secure</li>
+                            <li>Standard Web3 practice</li>
+                            <li>Requires MetaMask</li>
                         </ul>
                         <button class="btn-primary" id="connect-metamask-btn">Connect Wallet</button>
                     </div>
                 </div>
 
-                <p class="wallet-note">💡 You can always change this later in settings</p>
+                <p class="wallet-note">You can always change this later in settings</p>
             </div>
         </div>
 
         <!-- Forgot Password Modal -->
         <div class="modal" id="forgot-password-modal" style="display: none;">
             <div class="modal-content auth-modal">
-                <h2>🔑 Reset Password</h2>
+                <h2>Reset Password</h2>
                 <p class="subtitle">Enter your email and new password</p>
 
                 <div class="auth-form">
@@ -138,7 +153,7 @@
                     <div class="network-switcher">
                         <span class="network-label">Network:</span>
                         <button class="btn-network" id="network-toggle-btn">
-                            <span id="network-status">🧪 Testnet</span>
+                            <span id="network-status">Testnet</span>
                         </button>
                     </div>
                 </div>
@@ -151,9 +166,9 @@
                         <span class="balance-label">MATIC:</span>
                         <span class="balance-value" id="matic-balance">0.00</span>
                     </div>
-                    <button class="btn-small" id="refresh-balance-btn">🔄 Refresh</button>
+                    <button class="btn-small" id="refresh-balance-btn">Refresh</button>
                     <button class="btn-small btn-danger-small" id="export-key-btn" style="display: none;">
-                        🔑 Export Key
+                        Export Key
                     </button>
                 </div>
             </div>
@@ -161,28 +176,24 @@
             <!-- Top Stats Row -->
             <div class="stats-row">
                 <div class="stat-card purple">
-                    <div class="stat-icon">💰</div>
                     <div class="stat-content">
                         <h3 id="total-profit">$0.00</h3>
                         <p>Total Profit</p>
                     </div>
                 </div>
                 <div class="stat-card blue">
-                    <div class="stat-icon">📈</div>
                     <div class="stat-content">
                         <h3 id="win-rate">0%</h3>
                         <p>Win Rate</p>
                     </div>
                 </div>
                 <div class="stat-card green">
-                    <div class="stat-icon">🎯</div>
                     <div class="stat-content">
                         <h3 id="total-trades">0</h3>
                         <p>Total Trades</p>
                     </div>
                 </div>
                 <div class="stat-card orange">
-                    <div class="stat-icon">⚡</div>
                     <div class="stat-content">
                         <h3 id="active-positions">0</h3>
                         <p>Active Positions</p>
@@ -199,7 +210,7 @@
                     <!-- Bot Configuration -->
                     <div class="card">
                         <div class="card-header">
-                            <h2>🤖 Bot Configuration</h2>
+                            <h2>Bot Configuration</h2>
                             <div class="bot-status" id="bot-status">
                                 <span class="status-dot offline"></span>
                                 <span>Offline</span>
@@ -256,10 +267,10 @@
 
                             <div class="button-group">
                                 <button class="btn-success" id="start-bot-btn">
-                                    <span>▶</span> Start Bot
+                                    Start Bot
                                 </button>
                                 <button class="btn-danger" id="stop-bot-btn" style="display: none;">
-                                    <span>⏸</span> Stop Bot
+                                    Stop Bot
                                 </button>
                             </div>
                         </div>
@@ -268,7 +279,7 @@
                     <!-- Manual Trading -->
                     <div class="card">
                         <div class="card-header">
-                            <h2>🎮 Manual Trading</h2>
+                            <h2>Manual Trading</h2>
                         </div>
                         <div class="card-body">
                             <div class="form-group">
@@ -300,8 +311,8 @@
                     <!-- Trending Markets -->
                     <div class="card">
                         <div class="card-header">
-                            <h2>🔥 Trending Markets</h2>
-                            <button class="btn-refresh" id="refresh-markets-btn">🔄</button>
+                            <h2>Trending Markets</h2>
+                            <button class="btn-refresh" id="refresh-markets-btn">Refresh</button>
                         </div>
                         <div class="card-body">
                             <input type="text" id="market-search" placeholder="Search markets..." class="input-field search-input">
@@ -314,8 +325,8 @@
                     <!-- Top Traders -->
                     <div class="card">
                         <div class="card-header">
-                            <h2>🏆 Top 5 Traders</h2>
-                            <button class="btn-refresh" id="refresh-traders-btn">🔄</button>
+                            <h2>Top 5 Traders</h2>
+                            <button class="btn-refresh" id="refresh-traders-btn">Refresh</button>
                         </div>
                         <div class="card-body">
                             <div id="top-traders-list" class="traders-list">
@@ -327,7 +338,7 @@
                     <!-- Copy Trading -->
                     <div class="card">
                         <div class="card-header">
-                            <h2>👥 Copy Trading</h2>
+                            <h2>Copy Trading</h2>
                         </div>
                         <div class="card-body">
                             <div class="copy-trade-info">
@@ -361,10 +372,10 @@
                             </div>
                             <div class="button-group">
                                 <button class="btn-success" id="start-copy-btn">
-                                    <span>▶</span> Start Copy Trading
+                                    Start Copy Trading
                                 </button>
                                 <button class="btn-danger" id="stop-copy-btn" style="display: none;">
-                                    <span>⏸</span> Stop Copy Trading
+                                    Stop Copy Trading
                                 </button>
                             </div>
                         </div>
@@ -373,7 +384,7 @@
                     <!-- Recent Activity -->
                     <div class="card">
                         <div class="card-header">
-                            <h2>📊 Recent Activity</h2>
+                            <h2>Recent Activity</h2>
                         </div>
                         <div class="card-body">
                             <div id="activity-feed" class="activity-list">
@@ -385,7 +396,7 @@
                     <!-- Points Rewards -->
                     <div class="card points-card">
                         <div class="card-header">
-                            <h2>⭐ Points Rewards</h2>
+                            <h2>Points Rewards</h2>
                         </div>
                         <div class="card-body">
                             <div class="points-info">
@@ -425,7 +436,7 @@
                                 </div>
                                 <div class="reward-item lifetime">
                                     <div class="reward-info">
-                                        <strong>✨ VIP Access</strong>
+                                        <strong>VIP Access</strong>
                                         <span>500,000 points</span>
                                     </div>
                                     <button class="btn-redeem gold" data-points="500000" data-reward="VIP Access">
