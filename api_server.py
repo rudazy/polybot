@@ -152,6 +152,15 @@ def health_check():
 @app.post("/users/register")
 def register_user(user: UserCreate):
     """Register a new user with password"""
+    # Check if user already exists
+    existing_user = db.get_user(email=user.email)
+
+    if existing_user:
+        return {
+            "success": False,
+            "message": "Email already registered. Please login instead."
+        }
+
     # Hash the password
     hashed_password = hash_password(user.password)
 
@@ -161,7 +170,7 @@ def register_user(user: UserCreate):
     if not user_id:
         return {
             "success": False,
-            "message": "User already exists or creation failed"
+            "message": "Registration failed. Please try again."
         }
 
     # Store the hashed password
