@@ -27,7 +27,12 @@ app = FastAPI(
 # CORS middleware (allows frontend to connect)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your frontend domain
+    allow_origins=[
+        "https://polybot-gamma.vercel.app",
+        "https://polybot.finance",
+        "http://localhost:3000",
+        "http://localhost:8000"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
