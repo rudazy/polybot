@@ -21,7 +21,7 @@ class WalletManager:
         """Initialize wallet manager with blockchain connection"""
         self.db = db
         self.blockchain = BlockchainManager()
-        print("✅ Wallet Manager initialized with REAL blockchain")
+        print("[OK] Wallet Manager initialized with REAL blockchain")
     
     # ==================== IN-APP WALLET CREATION ====================
     
@@ -48,7 +48,7 @@ class WalletManager:
             wallet_address = wallet_result['address']
             private_key = wallet_result['private_key']
             
-            print(f"🔐 Created REAL blockchain wallet: {wallet_address}")
+            print(f"[SECURE] Created REAL blockchain wallet: {wallet_address}")
             
             # Encrypt private key before storing
             encrypted_key = self._encrypt_key(private_key)
@@ -86,7 +86,7 @@ class WalletManager:
             }
             
         except Exception as e:
-            print(f"❌ Error creating wallet: {e}")
+            print(f"[ERROR] Error creating wallet: {e}")
             return {
                 "success": False,
                 "error": str(e)
@@ -142,11 +142,11 @@ class WalletManager:
             user = self.db.users.find_one({"_id": ObjectId(user_id)})
             
             if not user:
-                print("❌ User not found")
+                print("[ERROR] User not found")
                 return None
             
             if user.get('wallet_type') != 'in-app':
-                print("❌ Not an in-app wallet (cannot export external wallet keys)")
+                print("[ERROR] Not an in-app wallet (cannot export external wallet keys)")
                 return None
             
             # Get encrypted private key
@@ -154,18 +154,18 @@ class WalletManager:
             wallet = wallets_collection.find_one({"user_id": user_id})
             
             if not wallet:
-                print("❌ Wallet not found in database")
+                print("[ERROR] Wallet not found in database")
                 return None
             
             # Decrypt and return
             private_key = self._decrypt_key(wallet['private_key_encrypted'])
             
-            print(f"⚠️ WARNING: Private key exported for user {user_id}")
+            print(f"[WARNING] WARNING: Private key exported for user {user_id}")
             
             return private_key
             
         except Exception as e:
-            print(f"❌ Error exporting private key: {e}")
+            print(f"[ERROR] Error exporting private key: {e}")
             return None
     
     # ==================== EXTERNAL WALLET CONNECTION ====================
@@ -211,7 +211,7 @@ class WalletManager:
             }
             
         except Exception as e:
-            print(f"❌ Error connecting wallet: {e}")
+            print(f"[ERROR] Error connecting wallet: {e}")
             return {
                 "success": False,
                 "error": str(e)
@@ -242,7 +242,7 @@ class WalletManager:
             }
             
         except Exception as e:
-            print(f"❌ Error getting balance: {e}")
+            print(f"[ERROR] Error getting balance: {e}")
             return {
                 "success": False,
                 "error": str(e),
@@ -284,7 +284,7 @@ class WalletManager:
             }
             
         except Exception as e:
-            print(f"❌ Error getting wallet info: {e}")
+            print(f"[ERROR] Error getting wallet info: {e}")
             return None
     
     # ==================== TRANSACTIONS ====================
@@ -317,7 +317,7 @@ class WalletManager:
             return result
             
         except Exception as e:
-            print(f"❌ Error sending MATIC: {e}")
+            print(f"[ERROR] Error sending MATIC: {e}")
             return {
                 "success": False,
                 "error": str(e)
@@ -351,7 +351,7 @@ class WalletManager:
             return result
             
         except Exception as e:
-            print(f"❌ Error sending USDC: {e}")
+            print(f"[ERROR] Error sending USDC: {e}")
             return {
                 "success": False,
                 "error": str(e)
@@ -377,37 +377,37 @@ def test_wallet_manager():
         result = wallet_manager.create_in_app_wallet(user_id)
         
         if result['success']:
-            print(f"✅ REAL Wallet created: {result['wallet_address']}")
+            print(f"[OK] REAL Wallet created: {result['wallet_address']}")
             print(f"   Type: {result['wallet_type']}\n")
             
             # Test 2: Get REAL balance from blockchain
             print("Test 2: Checking REAL blockchain balance...")
             balance = wallet_manager.get_wallet_balance(result['wallet_address'])
-            print(f"✅ MATIC Balance: {balance['matic_balance']}")
-            print(f"✅ USDC Balance: {balance['usdc_balance']}")
-            print(f"✅ Total USD: ${balance['total_usd']:.2f}\n")
+            print(f"[OK] MATIC Balance: {balance['matic_balance']}")
+            print(f"[OK] USDC Balance: {balance['usdc_balance']}")
+            print(f"[OK] Total USD: ${balance['total_usd']:.2f}\n")
             
             # Test 3: Export private key
             print("Test 3: Testing private key export...")
             private_key = wallet_manager.export_private_key(user_id)
             if private_key:
-                print(f"✅ Private key exported successfully!")
+                print(f"[OK] Private key exported successfully!")
                 print(f"   Key: {private_key[:10]}...{private_key[-10:]}")
-                print(f"   ⚠️ WARNING: This is a REAL private key!\n")
+                print(f"   [WARNING] WARNING: This is a REAL private key!\n")
             
             # Test 4: Get user wallet info with REAL balances
             print("Test 4: Getting user wallet info with REAL balances...")
             wallet_info = wallet_manager.get_user_wallet(user_id)
             if wallet_info:
-                print(f"✅ User wallet: {wallet_info['wallet_address']}")
+                print(f"[OK] User wallet: {wallet_info['wallet_address']}")
                 print(f"   Type: {wallet_info['wallet_type']}")
                 print(f"   REAL MATIC: {wallet_info['matic_balance']}")
                 print(f"   REAL USDC: ${wallet_info['usdc_balance']:.2f}\n")
     else:
-        print("⚠️ No users in database. Create a user first!")
+        print("[WARNING] No users in database. Create a user first!")
     
     db.close()
-    print("✅ Wallet Manager with REAL blockchain test complete!")
+    print("[OK] Wallet Manager with REAL blockchain test complete!")
 
 
 if __name__ == "__main__":

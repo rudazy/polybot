@@ -85,14 +85,14 @@ class BlockchainManager:
         
         # Check connection
         if self.w3.is_connected():
-            print(f"✅ Connected to {self.network_config['name']} (Chain ID: {self.chain_id})")
-            print(f"📊 Latest Block: {self.w3.eth.block_number}")
+            print(f"[OK] Connected to {self.network_config['name']} (Chain ID: {self.chain_id})")
+            print(f"[INFO] Latest Block: {self.w3.eth.block_number}")
             if network == "testnet":
-                print(f"🧪 TESTNET MODE - Using test tokens (no real money)")
+                print(f"[TEST] TESTNET MODE - Using test tokens (no real money)")
             else:
-                print(f"💰 MAINNET MODE - Using REAL tokens!")
+                print(f"[MAINNET] MAINNET MODE - Using REAL tokens!")
         else:
-            print(f"❌ Failed to connect to {self.network_config['name']}")
+            print(f"[ERROR] Failed to connect to {self.network_config['name']}")
         
         # Initialize USDC contract
         self.usdc_contract = self.w3.eth.contract(
@@ -114,15 +114,15 @@ class BlockchainManager:
         """
         try:
             if network not in NETWORKS:
-                print(f"❌ Invalid network: {network}")
+                print(f"[ERROR] Invalid network: {network}")
                 return False
             
-            print(f"🔄 Switching to {NETWORKS[network]['name']}...")
+            print(f"[SWITCH] Switching to {NETWORKS[network]['name']}...")
             self.__init__(network)
             return True
             
         except Exception as e:
-            print(f"❌ Error switching network: {e}")
+            print(f"[ERROR] Error switching network: {e}")
             return False
     
     def get_network_info(self) -> Dict:
@@ -184,7 +184,7 @@ class BlockchainManager:
             }
             
         except Exception as e:
-            print(f"❌ Error creating wallet: {e}")
+            print(f"[ERROR] Error creating wallet: {e}")
             return {
                 "success": False,
                 "error": str(e)
@@ -217,7 +217,7 @@ class BlockchainManager:
             }
             
         except Exception as e:
-            print(f"❌ Error importing wallet: {e}")
+            print(f"[ERROR] Error importing wallet: {e}")
             return {
                 "success": False,
                 "error": str(e)
@@ -245,7 +245,7 @@ class BlockchainManager:
             return float(balance_matic)
             
         except Exception as e:
-            print(f"❌ Error getting MATIC balance: {e}")
+            print(f"[ERROR] Error getting MATIC balance: {e}")
             return 0.0
     
     def get_usdc_balance(self, address: str) -> float:
@@ -270,7 +270,7 @@ class BlockchainManager:
             return float(balance_usdc)
             
         except Exception as e:
-            print(f"❌ Error getting USDC balance: {e}")
+            print(f"[ERROR] Error getting USDC balance: {e}")
             return 0.0
     
     def get_all_balances(self, address: str) -> Dict:
@@ -334,7 +334,7 @@ class BlockchainManager:
             # Send transaction
             tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
             
-            print(f"✅ Transaction sent! Hash: {tx_hash.hex()}")
+            print(f"[OK] Transaction sent! Hash: {tx_hash.hex()}")
             print(f"🔗 View on explorer: {self.network_config['explorer']}/tx/{tx_hash.hex()}")
             
             # Wait for confirmation (optional)
@@ -350,7 +350,7 @@ class BlockchainManager:
             }
             
         except Exception as e:
-            print(f"❌ Error sending MATIC: {e}")
+            print(f"[ERROR] Error sending MATIC: {e}")
             return {
                 "success": False,
                 "error": str(e)
@@ -394,7 +394,7 @@ class BlockchainManager:
             # Send transaction
             tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
             
-            print(f"✅ USDC transaction sent! Hash: {tx_hash.hex()}")
+            print(f"[OK] USDC transaction sent! Hash: {tx_hash.hex()}")
             print(f"🔗 View on explorer: {self.network_config['explorer']}/tx/{tx_hash.hex()}")
             
             # Wait for confirmation
@@ -410,7 +410,7 @@ class BlockchainManager:
             }
             
         except Exception as e:
-            print(f"❌ Error sending USDC: {e}")
+            print(f"[ERROR] Error sending USDC: {e}")
             return {
                 "success": False,
                 "error": str(e)
@@ -428,7 +428,7 @@ class BlockchainManager:
             tx = self.w3.eth.get_transaction(tx_hash)
             return dict(tx)
         except Exception as e:
-            print(f"❌ Error getting transaction: {e}")
+            print(f"[ERROR] Error getting transaction: {e}")
             return None
     
     def get_gas_price(self) -> Dict:
@@ -443,13 +443,13 @@ class BlockchainManager:
                 "network": self.network
             }
         except Exception as e:
-            print(f"❌ Error getting gas price: {e}")
+            print(f"[ERROR] Error getting gas price: {e}")
             return {"gas_price_gwei": 0}
 
 
 def test_blockchain_manager():
     """Test blockchain manager functionality with network switching"""
-    print("🧪 Testing Blockchain Manager with Network Switching...\n")
+    print("[TEST] Testing Blockchain Manager with Network Switching...\n")
     
     # Test 1: Start with TESTNET (default)
     print("=" * 60)
@@ -459,13 +459,13 @@ def test_blockchain_manager():
     
     wallet = blockchain_testnet.create_wallet()
     if wallet['success']:
-        print(f"✅ Testnet Wallet: {wallet['address']}")
+        print(f"[OK] Testnet Wallet: {wallet['address']}")
         print(f"   Network: {wallet['network']}")
         
         # Check testnet balance
         balances = blockchain_testnet.get_all_balances(wallet['address'])
-        print(f"✅ Testnet MATIC: {balances['matic']}")
-        print(f"✅ Testnet USDC: {balances['usdc']}")
+        print(f"[OK] Testnet MATIC: {balances['matic']}")
+        print(f"[OK] Testnet USDC: {balances['usdc']}")
         
         # Get faucet info
         faucet = blockchain_testnet.get_faucet_info()
@@ -483,7 +483,7 @@ def test_blockchain_manager():
     # Check Vitalik's address on mainnet
     vitalik = "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
     balances_main = blockchain_mainnet.get_all_balances(vitalik)
-    print(f"✅ Mainnet Address: {vitalik}")
+    print(f"[OK] Mainnet Address: {vitalik}")
     print(f"   MATIC Balance: {balances_main['matic']}")
     print(f"   USDC Balance: {balances_main['usdc']}")
     
@@ -497,7 +497,7 @@ def test_blockchain_manager():
     print(f"Testnet: {testnet_info['name']} (Chain ID: {testnet_info['chain_id']})")
     print(f"Mainnet: {mainnet_info['name']} (Chain ID: {mainnet_info['chain_id']})")
     
-    print("\n✅ Blockchain Manager with Network Switching test complete!")
+    print("\n[OK] Blockchain Manager with Network Switching test complete!")
     print("\n💡 TIP: Users can safely test on TESTNET before using MAINNET!")
 
 
