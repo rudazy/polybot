@@ -340,14 +340,41 @@ async function checkWalletAndProceed() {
 
 async function handleCreateInAppWallet() {
     try {
+        // If no user is logged in, create a guest account first
+        if (!currentUserId) {
+            showNotification('🔐 Creating guest account...', 'info');
+            const guestEmail = `guest_${Date.now()}@polybot.finance`;
+            const guestPassword = `guest_${Math.random().toString(36).slice(2)}`;
+
+            const registerResponse = await fetch(`${API_URL}/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: guestEmail,
+                    password: guestPassword
+                })
+            });
+
+            const registerData = await registerResponse.json();
+
+            if (registerData.success) {
+                currentUserId = registerData.user_id;
+                currentUser = { id: currentUserId, email: guestEmail };
+                localStorage.setItem('polybot_user', JSON.stringify(currentUser));
+            } else {
+                showNotification('❌ Failed to create guest account', 'error');
+                return;
+            }
+        }
+
         showNotification('🔐 Creating your wallet...', 'info');
-        
+
         const response = await fetch(`${API_URL}/wallet/create-inapp/${currentUserId}`, {
             method: 'POST'
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             showNotification('✅ Wallet created successfully!', 'success');
             hasWallet = true;
@@ -358,7 +385,7 @@ async function handleCreateInAppWallet() {
         }
     } catch (error) {
         console.error('Error creating wallet:', error);
-        showNotification('❌ Failed to create wallet', 'error');
+        showNotification('❌ Failed to create wallet: ' + error.message, 'error');
     }
 }
 
@@ -368,21 +395,48 @@ async function handleConnectMetaMask() {
         window.open('https://metamask.io/download/', '_blank');
         return;
     }
-    
+
     try {
         showNotification('🦊 Connecting to MetaMask...', 'info');
-        
+
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
         const walletAddress = accounts[0];
-        
+
+        // If no user is logged in, create a guest account first
+        if (!currentUserId) {
+            showNotification('🔐 Creating guest account...', 'info');
+            const guestEmail = `guest_${Date.now()}@polybot.finance`;
+            const guestPassword = `guest_${Math.random().toString(36).slice(2)}`;
+
+            const registerResponse = await fetch(`${API_URL}/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: guestEmail,
+                    password: guestPassword
+                })
+            });
+
+            const registerData = await registerResponse.json();
+
+            if (registerData.success) {
+                currentUserId = registerData.user_id;
+                currentUser = { id: currentUserId, email: guestEmail };
+                localStorage.setItem('polybot_user', JSON.stringify(currentUser));
+            } else {
+                showNotification('❌ Failed to create guest account', 'error');
+                return;
+            }
+        }
+
         const response = await fetch(`${API_URL}/wallet/connect-external/${currentUserId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ wallet_address: walletAddress })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             showNotification('✅ MetaMask connected successfully!', 'success');
             hasWallet = true;
@@ -393,7 +447,7 @@ async function handleConnectMetaMask() {
         }
     } catch (error) {
         console.error('Error connecting MetaMask:', error);
-        showNotification('❌ Failed to connect MetaMask', 'error');
+        showNotification('❌ Failed to connect MetaMask: ' + error.message, 'error');
     }
 }
 
@@ -1129,12 +1183,25 @@ function createTraderCard(trader, rank) {
 // ==================== COPY TRADING ====================
 
 async function startCopyTrading() {
+    const manualWallet = document.getElementById('copy-wallet-input').value.trim();
     const selectedTrader = document.getElementById('copy-trader-select').value;
     const copyAmount = parseFloat(document.getElementById('copy-amount').value);
     const maxTrades = parseInt(document.getElementById('max-copy-trades').value);
 
-    if (!selectedTrader) {
-        showNotification('❌ Please select a trader to copy', 'error');
+    // Determine which wallet to use
+    let targetWallet = '';
+
+    if (manualWallet) {
+        // Validate wallet address format
+        if (!manualWallet.startsWith('0x') || manualWallet.length !== 42) {
+            showNotification('❌ Invalid wallet address format. Must be 42 characters starting with 0x', 'error');
+            return;
+        }
+        targetWallet = manualWallet;
+    } else if (selectedTrader) {
+        targetWallet = selectedTrader;
+    } else {
+        showNotification('❌ Please enter a wallet address or select a trader to copy', 'error');
         return;
     }
 
@@ -1150,7 +1217,7 @@ async function startCopyTrading() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                target_wallet: selectedTrader,
+                target_wallet: targetWallet,
                 copy_amount: copyAmount,
                 max_trades_per_day: maxTrades
             })
@@ -1163,7 +1230,7 @@ async function startCopyTrading() {
             document.getElementById('copy-trade-status').style.display = 'flex';
             document.getElementById('copy-trade-status').innerHTML = `
                 <span class="status-dot online"></span>
-                <span>Copying: ${selectedTrader.slice(0, 8)}...</span>
+                <span>Copying: ${targetWallet.slice(0, 8)}...</span>
             `;
             document.getElementById('start-copy-btn').style.display = 'none';
             document.getElementById('stop-copy-btn').style.display = 'block';
@@ -1227,6 +1294,14 @@ function showWhaleNotification(whaleData) {
                 <span class="whale-amount">$${whaleData.amount.toLocaleString()}</span>
             </div>
             <div class="whale-market">${whaleData.market}</div>
+            <div class="whale-actions">
+                <button class="whale-btn whale-trade-btn" data-whale='${JSON.stringify(whaleData)}'>
+                    📈 Trade Now
+                </button>
+                <button class="whale-btn whale-share-btn" data-whale='${JSON.stringify(whaleData)}'>
+                    🐦 Share on X
+                </button>
+            </div>
         </div>
     `;
 
@@ -1237,10 +1312,26 @@ function showWhaleNotification(whaleData) {
         dismissWhaleNotification(notification);
     });
 
-    // Auto-dismiss after 10 seconds
+    // Add trade handler
+    const tradeBtn = notification.querySelector('.whale-trade-btn');
+    tradeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const whale = JSON.parse(e.target.dataset.whale);
+        handleWhaleTradeClick(whale);
+    });
+
+    // Add share handler
+    const shareBtn = notification.querySelector('.whale-share-btn');
+    shareBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const whale = JSON.parse(e.target.dataset.whale);
+        handleWhaleShareClick(whale);
+    });
+
+    // Auto-dismiss after 15 seconds (increased from 10 to give time to interact)
     setTimeout(() => {
         dismissWhaleNotification(notification);
-    }, 10000);
+    }, 15000);
 
     container.appendChild(notification);
 
@@ -1249,6 +1340,52 @@ function showWhaleNotification(whaleData) {
     if (notifications.length > 3) {
         dismissWhaleNotification(notifications[0]);
     }
+}
+
+function handleWhaleTradeClick(whaleData) {
+    // Show trade modal with pre-filled data
+    showNotification(`🐋 Opening trade for: ${whaleData.market}`, 'info');
+
+    // Scroll to manual trading section
+    const manualTradeCard = document.querySelector('.manual-trade-card');
+    if (manualTradeCard) {
+        manualTradeCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Pre-fill the position and amount
+        setTimeout(() => {
+            const positionSelect = document.getElementById('trade-position');
+            const amountInput = document.getElementById('trade-amount');
+
+            if (positionSelect) {
+                positionSelect.value = whaleData.position;
+            }
+
+            if (amountInput) {
+                // Suggest a smaller amount than the whale (e.g., 10% of whale amount)
+                const suggestedAmount = Math.round(whaleData.amount * 0.1);
+                amountInput.value = suggestedAmount;
+            }
+
+            // Highlight the section
+            manualTradeCard.style.boxShadow = '0 0 20px rgba(16, 185, 129, 0.5)';
+            setTimeout(() => {
+                manualTradeCard.style.boxShadow = '';
+            }, 2000);
+        }, 500);
+    }
+}
+
+function handleWhaleShareClick(whaleData) {
+    // Create X (Twitter) share URL
+    const websiteUrl = 'https://polybot.finance';
+    const tweetText = `🐋 Whale Alert! A whale just bought ${whaleData.position} with $${whaleData.amount.toLocaleString()} on: ${whaleData.market}\n\nFollow the smart money and trade now at ${websiteUrl}`;
+
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
+
+    // Open in new window
+    window.open(twitterUrl, '_blank', 'width=550,height=420');
+
+    showNotification('🐦 Opening X (Twitter) to share...', 'success');
 }
 
 function dismissWhaleNotification(notification) {
