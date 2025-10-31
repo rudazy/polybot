@@ -1,7 +1,6 @@
 """
 Blockchain Manager for Polymarket Trading Bot
-Handles real Web3 interactions with Polygon network
-NOW WITH TESTNET/MAINNET SWITCHING!
+Handles real Web3 interactions with Polygon Mainnet
 """
 
 from web3 import Web3
@@ -10,28 +9,15 @@ import secrets
 from typing import Dict, Optional
 from decimal import Decimal
 
-# Network Configurations
-NETWORKS = {
-    "mainnet": {
-        "name": "Polygon Mainnet",
-        "rpc_url": "https://polygon-rpc.com",
-        "chain_id": 137,
-        "usdc_address": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
-        "explorer": "https://polygonscan.com",
-        "currency_symbol": "MATIC"
-    },
-    "testnet": {
-        "name": "Mumbai Testnet", 
-        "rpc_url": "https://rpc-mumbai.maticvigil.com",
-        "chain_id": 80001,
-        "usdc_address": "0x0FA8781a83E46826621b3BC094Ea2A0212e71B23",  # Test USDC
-        "explorer": "https://mumbai.polygonscan.com",
-        "currency_symbol": "MATIC (Test)"
-    }
+# Network Configuration - Mainnet Only
+NETWORK_CONFIG = {
+    "name": "Polygon Mainnet",
+    "rpc_url": "https://polygon-rpc.com",
+    "chain_id": 137,
+    "usdc_address": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+    "explorer": "https://polygonscan.com",
+    "currency_symbol": "MATIC"
 }
-
-# Default network - START WITH TESTNET FOR SAFETY!
-DEFAULT_NETWORK = "testnet"
 
 # Minimal ERC20 ABI (for balance checking and transfers)
 ERC20_ABI = [
@@ -64,33 +50,21 @@ ERC20_ABI = [
 
 class BlockchainManager:
     """
-    Manages real blockchain interactions with Polygon network
-    Supports both TESTNET (Mumbai) and MAINNET (Polygon)
+    Manages real blockchain interactions with Polygon Mainnet
     """
-    
-    def __init__(self, network: str = DEFAULT_NETWORK):
+
+    def __init__(self):
         """
-        Initialize Web3 connection to Polygon
-        
-        Args:
-            network: "testnet" for Mumbai or "mainnet" for Polygon
+        Initialize Web3 connection to Polygon Mainnet
         """
-        if network not in NETWORKS:
-            raise ValueError(f"Invalid network: {network}. Use 'testnet' or 'mainnet'")
-        
-        self.network = network
-        self.network_config = NETWORKS[network]
+        self.network_config = NETWORK_CONFIG
         self.w3 = Web3(Web3.HTTPProvider(self.network_config["rpc_url"]))
         self.chain_id = self.network_config["chain_id"]
-        
+
         # Check connection
         if self.w3.is_connected():
             print(f"[OK] Connected to {self.network_config['name']} (Chain ID: {self.chain_id})")
             print(f"[INFO] Latest Block: {self.w3.eth.block_number}")
-            if network == "testnet":
-                print(f"[TEST] TESTNET MODE - Using test tokens (no real money)")
-            else:
-                print(f"[MAINNET] MAINNET MODE - Using REAL tokens!")
         else:
             print(f"[ERROR] Failed to connect to {self.network_config['name']}")
         

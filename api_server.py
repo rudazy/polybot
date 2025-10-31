@@ -47,7 +47,6 @@ polymarket = PolymarketAPI()
 wallet_manager = WalletManager(db)
 active_bots = {}  # Store active bot instances per user
 active_copy_traders = {}  # Store active copy trading instances per user
-user_networks = {}  # Store network preference per user (default: testnet)
 whale_activity_feed = []  # Store simulated whale activity
 whale_id_counter = 0  # Counter for whale activity IDs
 
@@ -91,9 +90,6 @@ class PointsRedeem(BaseModel):
 class WalletConnect(BaseModel):
     wallet_address: str
 
-
-class NetworkSwitch(BaseModel):
-    network: str
 
 
 class CopyTradeStart(BaseModel):
@@ -595,49 +591,6 @@ def export_private_key(user_id: str, key_export: PrivateKeyExport):
         }
 
 
-# ==================== NETWORK SWITCHING ====================
-
-@app.get("/network/status/{user_id}")
-def get_network_status(user_id: str):
-    """Get current network for user"""
-    network = user_networks.get(user_id, "testnet")
-    return {
-        "success": True,
-        "network": network,
-        "is_testnet": network == "testnet"
-    }
-
-
-@app.post("/network/switch/{user_id}")
-def switch_network(user_id: str, network_data: NetworkSwitch):
-    """Switch between testnet and mainnet"""
-    network = network_data.network
-
-    if network not in ["testnet", "mainnet"]:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid network. Must be 'testnet' or 'mainnet'"
-        )
-
-    # Update user's network preference
-    user_networks[user_id] = network
-
-    # Stop bot if running when switching networks
-    if user_id in active_bots:
-        active_bots[user_id].stop()
-        del active_bots[user_id]
-
-    # Stop copy trading if active when switching networks
-    if user_id in active_copy_traders:
-        del active_copy_traders[user_id]
-
-    return {
-        "success": True,
-        "network": network,
-        "message": f"Switched to {network}. Bot and copy trading stopped for safety."
-    }
-
-
 # ==================== TOP TRADERS ====================
 
 @app.get("/traders/top")
@@ -804,7 +757,7 @@ def get_copy_trading_status(user_id: str):
 
 # ==================== WHALE ACTIVITY ====================
 
-# Sample whale wallets and markets for simulation
+# Sample whale wallets
 WHALE_WALLETS = [
     "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
     "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
@@ -816,31 +769,31 @@ WHALE_WALLETS = [
     "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
 ]
 
-SAMPLE_MARKETS = [
-    "Will Bitcoin reach $100K by end of 2024?",
-    "Will Trump win the 2024 election?",
-    "Will Ethereum ETF be approved in 2024?",
-    "Will AI reach AGI before 2030?",
-    "Will S&P 500 hit new ATH this month?",
-    "Will Fed cut rates in next meeting?",
-    "Will unemployment rate drop below 3%?",
-    "Will Tesla stock hit $300 this year?"
-]
-
 def generate_whale_activity():
-    """Generate simulated whale activity"""
+    """Generate whale activity using real trending market data"""
     global whale_id_counter, whale_activity_feed
 
     # 30% chance to generate new whale activity
     if random.random() < 0.3:
         whale_id_counter += 1
 
+        # Get real trending markets from Polymarket
+        try:
+            trending_markets = polymarket.get_markets(limit=10)
+            if trending_markets:
+                random_market = random.choice(trending_markets)
+                market_question = random_market.get('question', 'Unknown Market')
+            else:
+                market_question = "Unknown Market"
+        except:
+            market_question = "Unknown Market"
+
         whale = {
             "id": whale_id_counter,
             "wallet": random.choice(WHALE_WALLETS),
             "position": random.choice(["YES", "NO"]),
             "amount": random.randint(25000, 100000),  # $25K to $100K (only large buys)
-            "market": random.choice(SAMPLE_MARKETS),
+            "market": market_question,
             "timestamp": datetime.now().isoformat()
         }
 
