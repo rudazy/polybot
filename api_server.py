@@ -15,7 +15,7 @@ import random
 from mongodb_database import MongoDatabase
 from polymarket_api import PolymarketAPI
 from trading_bot import TradingBot
-# from wallet_manager import WalletManager
+from wallet_manager import WalletManager
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -44,7 +44,7 @@ app.add_middleware(
 # Initialize services
 db = MongoDatabase()
 polymarket = PolymarketAPI()
-# wallet_manager = WalletManager(db)
+wallet_manager = WalletManager(db)
 active_bots = {}  # Store active bot instances per user
 active_copy_traders = {}  # Store active copy trading instances per user
 user_networks = {}  # Store network preference per user (default: testnet)
