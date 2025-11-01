@@ -1,48 +1,94 @@
 """
-Polymarket API Wrapper - FIXED VERSION
+Polymarket API Wrapper - Using HTTPx like official Polymarket agents
 """
 
-import requests
+import httpx
 import json
 from typing import List, Dict, Optional
 from datetime import datetime
 
 
 class PolymarketAPI:
-    
+
     def __init__(self):
-        self.base_url = "https://clob.polymarket.com"
         self.gamma_url = "https://gamma-api.polymarket.com"
-        self.headers = {"Content-Type": "application/json"}
+        self.gamma_markets_endpoint = f"{self.gamma_url}/markets"
+        self.gamma_events_endpoint = f"{self.gamma_url}/events"
+
+        # Set up httpx client with browser-like headers to avoid Cloudflare blocking
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Origin": "https://polymarket.com",
+            "Referer": "https://polymarket.com/",
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-site",
+            "sec-ch-ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"macOS"'
+        }
+
+        self.client = httpx.Client(timeout=30.0, headers=headers, follow_redirects=True)
     
-    def get_markets(self, limit: int = 20, active: bool = True) -> List[Dict]:
-        """Fetch trending markets from Polymarket sorted by volume"""
+    def get_markets(self, limit: int = 20, active: bool = True, closed: bool = False) -> List[Dict]:
+        """Fetch markets from Polymarket Gamma API"""
         try:
-            endpoint = f"{self.gamma_url}/markets"
             params = {
                 "limit": limit,
-                "active": active,
-                "closed": False,
-                "order": "volume24hr",  # Sort by 24hr volume for trending markets
-                "ascending": False
+                "active": str(active).lower(),
+                "closed": str(closed).lower()
             }
 
-            response = requests.get(endpoint, params=params, headers=self.headers)
+            response = self.client.get(self.gamma_markets_endpoint, params=params)
             response.raise_for_status()
 
             markets = response.json()
             return markets if isinstance(markets, list) else []
 
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             print(f"Error fetching markets: {e}")
             return []
 
     def search_markets(self, query: str, limit: int = 50) -> List[Dict]:
-        """Search ALL markets by keyword across entire Polymarket database"""
+        """Search markets by keyword - fetches multiple pages for comprehensive results"""
         try:
-            # Fetch a large number of markets to search through
-            # This ensures we get comprehensive search results
-            all_markets = self.get_markets(limit=1000, active=True)
+            all_markets = []
+
+            # Fetch multiple pages to get comprehensive results
+            # Polymarket has thousands of markets, so we need to fetch in batches
+            for offset in [0, 100, 200, 300, 400]:
+                try:
+                    batch_params = {
+                        "limit": 100,
+                        "offset": offset,
+                        "active": "true",
+                        "closed": "false"
+                    }
+
+                    response = self.client.get(self.gamma_markets_endpoint, params=batch_params)
+
+                    if response.status_code == 200:
+                        batch = response.json()
+                        if isinstance(batch, list) and batch:
+                            all_markets.extend(batch)
+                        else:
+                            # No more results, stop fetching
+                            break
+                    else:
+                        # If one batch fails, continue with what we have
+                        break
+
+                except Exception as e:
+                    print(f"Error fetching batch at offset {offset}: {e}")
+                    # Continue with what we have
+                    break
+
+            # If we got no markets from batching, fall back to single request
+            if not all_markets:
+                all_markets = self.get_markets(limit=200, active=True, closed=False)
 
             # Filter by query in question (case-insensitive)
             query_lower = query.lower()

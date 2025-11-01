@@ -12,10 +12,44 @@ let hasWallet = false;
 let currentNetwork = 'testnet'; // Default to testnet for safety
 let copyTradingActive = false;
 
+// ==================== THEME MANAGEMENT ====================
+
+function initTheme() {
+    // Load saved theme or default to light
+    const savedTheme = localStorage.getItem('polybot_theme') || 'light';
+    setTheme(savedTheme);
+
+    // Add theme toggle event listener
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', toggleTheme);
+    }
+}
+
+function setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('polybot_theme', theme);
+
+    // Update icon
+    const themeIcon = document.getElementById('theme-icon');
+    if (themeIcon) {
+        themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+    }
+}
+
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+}
+
 // ==================== INITIALIZATION ====================
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 Polymarket Bot Dashboard Initialized');
+
+    // Initialize theme
+    initTheme();
 
     // Check if user is logged in
     const savedUser = localStorage.getItem('polybot_user');

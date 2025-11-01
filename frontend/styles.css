@@ -1,4 +1,4 @@
-/* ==================== ROOT VARIABLES (Light Blue & White Theme) ==================== */
+/* ==================== ROOT VARIABLES (Light Theme - Default) ==================== */
 :root {
     --primary-blue: #2563eb;
     --primary-light-blue: #3b82f6;
@@ -8,6 +8,26 @@
     --border-color: #e2e8f0;
     --text-primary: #1e293b;
     --text-secondary: #64748b;
+    --success-green: #10b981;
+    --danger-red: #ef4444;
+    --warning-orange: #f59e0b;
+    --gold: #fbbf24;
+    --gradient-blue: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+    --gradient-light-blue: linear-gradient(135deg, #60a5fa 0%, #93c5fd 100%);
+    --gradient-green: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+    --gradient-orange: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+}
+
+/* ==================== DARK THEME ==================== */
+[data-theme="dark"] {
+    --primary-blue: #3b82f6;
+    --primary-light-blue: #60a5fa;
+    --light-bg: #0f1419;
+    --lighter-bg: #1a1f2e;
+    --card-bg: #1a1f2e;
+    --border-color: #2d3748;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
     --success-green: #10b981;
     --danger-red: #ef4444;
     --warning-orange: #f59e0b;
@@ -72,6 +92,35 @@ body {
     display: flex;
     align-items: center;
     gap: 1rem;
+}
+
+/* ==================== THEME TOGGLE BUTTON ==================== */
+.theme-toggle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--border-color);
+    background: var(--card-bg);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    font-size: 1.2rem;
+}
+
+.theme-toggle:hover {
+    border-color: var(--primary-blue);
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.theme-icon {
+    transition: transform 0.3s ease;
+}
+
+.theme-toggle:hover .theme-icon {
+    transform: rotate(20deg);
 }
 
 .points-display {
