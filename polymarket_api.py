@@ -13,21 +13,22 @@ class PolymarketAPI:
     def __init__(self):
         self.base_url = "https://clob.polymarket.com"
         self.gamma_url = "https://gamma-api.polymarket.com"
-        self.headers = {"Content-Type": "application/json"}
+        self.headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
     
     def get_markets(self, limit: int = 20, active: bool = True) -> List[Dict]:
         """Fetch trending markets from Polymarket sorted by volume"""
         try:
             endpoint = f"{self.gamma_url}/markets"
             params = {
-                "limit": limit,
+                "limit": min(limit, 200),  # Cap at 200 to avoid API issues
                 "active": active,
-                "closed": False,
-                "order": "volume24hr",  # Sort by 24hr volume for trending markets
-                "ascending": False
+                "closed": False
             }
 
-            response = requests.get(endpoint, params=params, headers=self.headers)
+            response = requests.get(endpoint, params=params, headers=self.headers, timeout=10)
             response.raise_for_status()
 
             markets = response.json()
@@ -40,9 +41,22 @@ class PolymarketAPI:
     def search_markets(self, query: str, limit: int = 50) -> List[Dict]:
         """Search ALL markets by keyword across entire Polymarket database"""
         try:
-            # Fetch a large number of markets to search through
-            # This ensures we get comprehensive search results
-            all_markets = self.get_markets(limit=1000, active=True)
+            # Fetch multiple batches to get comprehensive results
+            all_markets = []
+
+            # Try to get up to 500 markets in batches
+            for offset in [0, 100, 200, 300, 400]:
+                try:
+                    batch = self.get_markets_batch(limit=100, offset=offset)
+                    if not batch:
+                        break
+                    all_markets.extend(batch)
+                except:
+                    break
+
+            # If batching fails, fall back to single request
+            if not all_markets:
+                all_markets = self.get_markets(limit=200, active=True)
 
             # Filter by query in question (case-insensitive)
             query_lower = query.lower()
@@ -56,6 +70,26 @@ class PolymarketAPI:
 
         except Exception as e:
             print(f"Error searching markets: {e}")
+            return []
+
+    def get_markets_batch(self, limit: int = 100, offset: int = 0) -> List[Dict]:
+        """Fetch a batch of markets with offset"""
+        try:
+            endpoint = f"{self.gamma_url}/markets"
+            params = {
+                "limit": limit,
+                "offset": offset,
+                "active": True,
+                "closed": False
+            }
+
+            response = requests.get(endpoint, params=params, headers=self.headers, timeout=10)
+            response.raise_for_status()
+
+            markets = response.json()
+            return markets if isinstance(markets, list) else []
+
+        except:
             return []
     
     def format_market_data(self, market: Dict) -> Dict:

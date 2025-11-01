@@ -322,6 +322,46 @@ def search_markets(query: str, limit: int = 50):
 @app.post("/trades/manual")
 def create_manual_trade(user_id: str, trade: TradeCreate):
     """Execute a manual trade"""
+    # Get user's wallet
+    wallet_data = db.get_wallet(user_id)
+
+    if not wallet_data:
+        raise HTTPException(status_code=400, detail="No wallet found. Please create or connect a wallet first.")
+
+    wallet_address = wallet_data.get('wallet_address')
+    if not wallet_address:
+        raise HTTPException(status_code=400, detail="Invalid wallet. Please reconnect your wallet.")
+
+    # Check wallet balance
+    try:
+        balance_data = wallet_manager.get_wallet_balance(wallet_address)
+
+        if not balance_data.get('success', False):
+            return {
+                "success": False,
+                "message": "Could not verify wallet balance. Please ensure your wallet is connected and funded on Polygon Mainnet."
+            }
+
+        usdc_balance = balance_data.get('usdc_balance', 0.0)
+
+        # Validate sufficient funds (require at least trade amount)
+        if usdc_balance < trade.amount:
+            return {
+                "success": False,
+                "message": f"Insufficient funds. You have ${usdc_balance:.2f} USDC but need ${trade.amount:.2f}. Please fund your wallet on Polygon Mainnet.",
+                "balance": usdc_balance,
+                "required": trade.amount
+            }
+
+    except Exception as e:
+        # If balance check fails, still block the trade
+        return {
+            "success": False,
+            "message": f"Could not verify wallet balance. Please ensure your wallet is connected and funded on Polygon Mainnet.",
+            "error": str(e)
+        }
+
+    # Balance is sufficient, create the trade
     trade_data = {
         'market_id': trade.market_id or 'manual-trade',
         'market_question': trade.market_question,
@@ -329,17 +369,18 @@ def create_manual_trade(user_id: str, trade: TradeCreate):
         'amount': trade.amount,
         'entry_price': 0.75  # Simulated for now
     }
-    
+
     trade_id = db.create_trade(user_id, trade_data)
-    
+
     if not trade_id:
         raise HTTPException(status_code=400, detail="Failed to create trade")
-    
+
     return {
         "success": True,
         "message": "Trade executed successfully",
         "trade_id": trade_id,
-        "points_earned": int(trade.amount)
+        "points_earned": int(trade.amount),
+        "remaining_balance": usdc_balance - trade.amount
     }
 
 
