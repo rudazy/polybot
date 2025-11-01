@@ -37,19 +37,21 @@ class PolymarketAPI:
             print(f"Error fetching markets: {e}")
             return []
 
-    def search_markets(self, query: str, limit: int = 10) -> List[Dict]:
-        """Search markets by keyword"""
+    def search_markets(self, query: str, limit: int = 50) -> List[Dict]:
+        """Search ALL markets by keyword across entire Polymarket database"""
         try:
-            # First get all active markets
-            all_markets = self.get_markets(limit=100, active=True)
+            # Fetch a large number of markets to search through
+            # This ensures we get comprehensive search results
+            all_markets = self.get_markets(limit=1000, active=True)
 
-            # Filter by query in question
+            # Filter by query in question (case-insensitive)
             query_lower = query.lower()
             filtered = [
                 m for m in all_markets
                 if query_lower in m.get('question', '').lower()
             ]
 
+            # Return up to the limit
             return filtered[:limit]
 
         except Exception as e:
