@@ -719,10 +719,11 @@ async function loadMarkets() {
 function createMarketCard(market) {
     const div = document.createElement('div');
     div.className = 'market-card';
-    
+    div.style.cursor = 'pointer';
+
     const probability = Math.max(market.yes_price || 0.5, market.no_price || 0.5) * 100;
     const probClass = probability >= 75 ? 'high' : 'medium';
-    
+
     div.innerHTML = `
         <div class="market-question">${market.question || 'Unknown Market'}</div>
         <div class="market-info">
@@ -730,7 +731,21 @@ function createMarketCard(market) {
             <span class="market-probability ${probClass}">${probability.toFixed(0)}%</span>
         </div>
     `;
-    
+
+    // Add click handler to auto-fill manual trading form
+    div.addEventListener('click', () => {
+        const manualMarketInput = document.getElementById('manual-market');
+        if (manualMarketInput) {
+            manualMarketInput.value = market.question || 'Unknown Market';
+            // Scroll to manual trading section
+            const manualTradingCard = manualMarketInput.closest('.card');
+            if (manualTradingCard) {
+                manualTradingCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            showNotification('📊 Market loaded to manual trade', 'success');
+        }
+    });
+
     return div;
 }
 
@@ -1343,36 +1358,38 @@ function showWhaleNotification(whaleData) {
 }
 
 function handleWhaleTradeClick(whaleData) {
-    // Show trade modal with pre-filled data
-    showNotification(`🐋 Opening trade for: ${whaleData.market}`, 'info');
+    // Fill manual trading form with whale data
+    const manualMarketInput = document.getElementById('manual-market');
+    const manualPositionSelect = document.getElementById('manual-position');
+    const manualAmountInput = document.getElementById('manual-amount');
+
+    if (manualMarketInput) {
+        manualMarketInput.value = whaleData.market;
+    }
+
+    if (manualPositionSelect) {
+        manualPositionSelect.value = whaleData.position;
+    }
+
+    if (manualAmountInput) {
+        // Suggest a smaller amount than the whale (e.g., 10% of whale amount)
+        const suggestedAmount = Math.round(whaleData.amount * 0.1);
+        manualAmountInput.value = suggestedAmount;
+    }
 
     // Scroll to manual trading section
-    const manualTradeCard = document.querySelector('.manual-trade-card');
-    if (manualTradeCard) {
-        manualTradeCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const manualTradingCard = manualMarketInput ? manualMarketInput.closest('.card') : null;
+    if (manualTradingCard) {
+        manualTradingCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-        // Pre-fill the position and amount
+        // Highlight the section
+        manualTradingCard.style.boxShadow = '0 0 20px rgba(59, 130, 246, 0.5)';
         setTimeout(() => {
-            const positionSelect = document.getElementById('trade-position');
-            const amountInput = document.getElementById('trade-amount');
-
-            if (positionSelect) {
-                positionSelect.value = whaleData.position;
-            }
-
-            if (amountInput) {
-                // Suggest a smaller amount than the whale (e.g., 10% of whale amount)
-                const suggestedAmount = Math.round(whaleData.amount * 0.1);
-                amountInput.value = suggestedAmount;
-            }
-
-            // Highlight the section
-            manualTradeCard.style.boxShadow = '0 0 20px rgba(16, 185, 129, 0.5)';
-            setTimeout(() => {
-                manualTradeCard.style.boxShadow = '';
-            }, 2000);
-        }, 500);
+            manualTradingCard.style.boxShadow = '';
+        }, 2000);
     }
+
+    showNotification('🐋 Whale trade loaded! Review and execute.', 'success');
 }
 
 function handleWhaleShareClick(whaleData) {
