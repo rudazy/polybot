@@ -304,14 +304,15 @@ def get_markets(limit: int = 20, category: str = "all"):
 
 
 @app.get("/markets/search")
-def search_markets(query: str, limit: int = 10):
-    """Search markets by keyword"""
+def search_markets(query: str, limit: int = 50):
+    """Search ALL markets by keyword - returns up to 50 matches"""
     markets = polymarket.search_markets(query, limit)
     formatted_markets = [polymarket.format_market_data(m) for m in markets]
-    
+
     return {
         "success": True,
         "count": len(formatted_markets),
+        "query": query,
         "markets": formatted_markets
     }
 
