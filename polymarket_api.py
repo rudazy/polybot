@@ -53,13 +53,42 @@ class PolymarketAPI:
             return []
 
     def search_markets(self, query: str, limit: int = 50) -> List[Dict]:
-        """Search markets by keyword - fetches and filters locally"""
+        """Search markets by keyword - fetches multiple pages for comprehensive results"""
         try:
-            # Fetch a large set of markets to search through
-            all_markets = self.get_markets(limit=500, active=True, closed=False)
+            all_markets = []
 
+            # Fetch multiple pages to get comprehensive results
+            # Polymarket has thousands of markets, so we need to fetch in batches
+            for offset in [0, 100, 200, 300, 400]:
+                try:
+                    batch_params = {
+                        "limit": 100,
+                        "offset": offset,
+                        "active": "true",
+                        "closed": "false"
+                    }
+
+                    response = self.client.get(self.gamma_markets_endpoint, params=batch_params)
+
+                    if response.status_code == 200:
+                        batch = response.json()
+                        if isinstance(batch, list) and batch:
+                            all_markets.extend(batch)
+                        else:
+                            # No more results, stop fetching
+                            break
+                    else:
+                        # If one batch fails, continue with what we have
+                        break
+
+                except Exception as e:
+                    print(f"Error fetching batch at offset {offset}: {e}")
+                    # Continue with what we have
+                    break
+
+            # If we got no markets from batching, fall back to single request
             if not all_markets:
-                return []
+                all_markets = self.get_markets(limit=200, active=True, closed=False)
 
             # Filter by query in question (case-insensitive)
             query_lower = query.lower()
