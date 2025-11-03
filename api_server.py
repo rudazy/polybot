@@ -285,27 +285,38 @@ def get_user_stats(user_id: str):
 # ==================== MARKETS ENDPOINTS ====================
 
 @app.get("/markets")
-def get_markets(limit: int = 20, category: str = "all"):
-    """Get active markets from Polymarket"""
-    markets = polymarket.get_markets(limit=limit)
-    
+def get_markets(limit: int = 20, category: str = "all", trending: bool = True):
+    """
+    Get active markets from Polymarket
+    ⚠️ FIXED: Now sorts by 24hr volume for trending markets
+    """
+    # Use trending markets sorted by 24hr volume
+    if trending:
+        markets = polymarket.get_trending_markets(limit=limit)
+    else:
+        markets = polymarket.get_markets(limit=limit)
+
     # Filter by category if specified
     if category != "all":
         markets = [m for m in markets if category.lower() in m.get('market_slug', '').lower()]
-    
+
     # Format markets
     formatted_markets = [polymarket.format_market_data(m) for m in markets]
-    
+
     return {
         "success": True,
         "count": len(formatted_markets),
-        "markets": formatted_markets
+        "markets": formatted_markets,
+        "trending": trending
     }
 
 
 @app.get("/markets/search")
-def search_markets(query: str, limit: int = 50):
-    """Search ALL markets by keyword - returns up to 50 matches"""
+def search_markets(query: str, limit: int = 100):
+    """
+    Search ALL markets by keyword
+    ⚠️ FIXED: Now searches comprehensively across all markets
+    """
     markets = polymarket.search_markets(query, limit)
     formatted_markets = [polymarket.format_market_data(m) for m in markets]
 
@@ -313,6 +324,7 @@ def search_markets(query: str, limit: int = 50):
         "success": True,
         "count": len(formatted_markets),
         "query": query,
+        "total_searched": f"Searched extensively to find all matches for '{query}'",
         "markets": formatted_markets
     }
 

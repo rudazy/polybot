@@ -28,33 +28,51 @@ class WalletManager:
     def create_in_app_wallet(self, user_id: str) -> Dict:
         """
         Create a new in-app wallet with REAL blockchain private key
-        
+        ⚠️ FIXED: Now checks if wallet already exists to prevent address mismatch!
+
         Args:
             user_id: User's database ID
-            
+
         Returns:
             Dictionary with wallet address and encrypted private key
         """
         try:
+            from bson.objectid import ObjectId
+
+            # CRITICAL FIX: Check if wallet already exists for this user
+            wallets_collection = self.db.db['wallets']
+            existing_wallet = wallets_collection.find_one({"user_id": user_id})
+
+            if existing_wallet:
+                print(f"[INFO] Wallet already exists for user {user_id}")
+                # Return existing wallet instead of creating a new one
+                existing_address = existing_wallet.get('wallet_address')
+                return {
+                    "success": True,
+                    "wallet_address": existing_address,
+                    "wallet_type": "in-app",
+                    "message": "Wallet already exists",
+                    "existing": True
+                }
+
             # Generate REAL wallet using blockchain manager
             wallet_result = self.blockchain.create_wallet()
-            
+
             if not wallet_result['success']:
                 return {
                     "success": False,
                     "error": "Failed to create blockchain wallet"
                 }
-            
+
             wallet_address = wallet_result['address']
             private_key = wallet_result['private_key']
-            
+
             print(f"[SECURE] Created REAL blockchain wallet: {wallet_address}")
-            
+
             # Encrypt private key before storing
             encrypted_key = self._encrypt_key(private_key)
-            
+
             # Store wallet in database
-            from bson.objectid import ObjectId
             self.db.users.update_one(
                 {"_id": ObjectId(user_id)},
                 {
@@ -64,27 +82,22 @@ class WalletManager:
                     }
                 }
             )
-            
+
             # Store encrypted private key separately (more secure)
-            wallets_collection = self.db.db['wallets']
-            
-            # Remove old wallet if exists
-            wallets_collection.delete_many({"user_id": user_id})
-            
-            # Insert new wallet
+            # NOTE: We don't delete old wallets anymore - we check first above
             wallets_collection.insert_one({
                 "user_id": user_id,
                 "wallet_address": wallet_address,
                 "private_key_encrypted": encrypted_key
             })
-            
+
             return {
                 "success": True,
                 "wallet_address": wallet_address,
                 "wallet_type": "in-app",
                 "message": "Real blockchain wallet created successfully!"
             }
-            
+
         except Exception as e:
             print(f"[ERROR] Error creating wallet: {e}")
             return {

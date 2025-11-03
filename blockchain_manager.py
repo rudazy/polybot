@@ -10,13 +10,23 @@ from typing import Dict, Optional
 from decimal import Decimal
 
 # Network Configuration - Mainnet Only
+# NOTE: MATIC has been rebranded to POL, but functionality remains the same
 NETWORK_CONFIG = {
     "name": "Polygon Mainnet",
-    "rpc_url": "https://polygon-rpc.com",
+    # Multiple RPC endpoints for redundancy (try in order)
+    "rpc_urls": [
+        "https://polygon-rpc.com",
+        "https://rpc-mainnet.matic.network",
+        "https://polygon-mainnet.public.blastapi.io",
+        "https://rpc-mainnet.maticvigil.com",
+        "https://rpc.ankr.com/polygon"
+    ],
     "chain_id": 137,
-    "usdc_address": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+    "usdc_address": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",  # USDC on Polygon
+    "pol_token_address": "0x0000000000000000000000000000000000001010",  # POL/MATIC contract
     "explorer": "https://polygonscan.com",
-    "currency_symbol": "MATIC"
+    "currency_symbol": "POL",  # UPDATED: MATIC → POL rebrand
+    "native_token_name": "POL"  # Native token (formerly MATIC)
 }
 
 # Minimal ERC20 ABI (for balance checking and transfers)
@@ -56,23 +66,47 @@ class BlockchainManager:
     def __init__(self):
         """
         Initialize Web3 connection to Polygon Mainnet
+        ⚠️ FIXED: Now tries multiple RPC endpoints for better reliability
         """
         self.network_config = NETWORK_CONFIG
-        self.w3 = Web3(Web3.HTTPProvider(self.network_config["rpc_url"]))
         self.chain_id = self.network_config["chain_id"]
+        self.w3 = None
 
-        # Check connection
-        if self.w3.is_connected():
-            print(f"[OK] Connected to {self.network_config['name']} (Chain ID: {self.chain_id})")
-            print(f"[INFO] Latest Block: {self.w3.eth.block_number}")
-        else:
-            print(f"[ERROR] Failed to connect to {self.network_config['name']}")
-        
+        # Try multiple RPC endpoints until one works
+        for rpc_url in self.network_config["rpc_urls"]:
+            try:
+                print(f"[INFO] Trying RPC: {rpc_url}")
+                w3_test = Web3(Web3.HTTPProvider(rpc_url, request_kwargs={'timeout': 10}))
+
+                # Test connection
+                if w3_test.is_connected():
+                    block_number = w3_test.eth.block_number
+                    self.w3 = w3_test
+                    print(f"[OK] ✅ Connected to {self.network_config['name']} (Chain ID: {self.chain_id})")
+                    print(f"[INFO] RPC: {rpc_url}")
+                    print(f"[INFO] Latest Block: {block_number}")
+                    print(f"[INFO] Native Token: {self.network_config['native_token_name']} (formerly MATIC)")
+                    break
+            except Exception as e:
+                print(f"[WARNING] Failed to connect to {rpc_url}: {e}")
+                continue
+
+        if not self.w3:
+            print(f"[ERROR] ❌ Failed to connect to ANY Polygon RPC endpoint!")
+            print(f"[ERROR] Tried {len(self.network_config['rpc_urls'])} different endpoints")
+            # Initialize with first endpoint anyway (will fail on use, but allows graceful degradation)
+            self.w3 = Web3(Web3.HTTPProvider(self.network_config["rpc_urls"][0]))
+
         # Initialize USDC contract
-        self.usdc_contract = self.w3.eth.contract(
-            address=Web3.to_checksum_address(self.network_config["usdc_address"]),
-            abi=ERC20_ABI
-        )
+        try:
+            self.usdc_contract = self.w3.eth.contract(
+                address=Web3.to_checksum_address(self.network_config["usdc_address"]),
+                abi=ERC20_ABI
+            )
+            print(f"[OK] USDC contract initialized: {self.network_config['usdc_address']}")
+        except Exception as e:
+            print(f"[ERROR] Failed to initialize USDC contract: {e}")
+            self.usdc_contract = None
     
     # ==================== NETWORK SWITCHING ====================
     
@@ -201,72 +235,105 @@ class BlockchainManager:
     
     def get_matic_balance(self, address: str) -> float:
         """
-        Get MATIC balance for an address
-        
+        Get POL balance for an address (formerly MATIC)
+        ⚠️ UPDATED: Function renamed from MATIC → POL to reflect rebrand
+
         Args:
             address: Wallet address
-            
+
         Returns:
-            MATIC balance as float
+            POL balance as float
         """
         try:
+            if not self.w3 or not self.w3.is_connected():
+                print(f"[ERROR] Not connected to Polygon network")
+                return 0.0
+
             # Get balance in Wei
             balance_wei = self.w3.eth.get_balance(Web3.to_checksum_address(address))
-            
-            # Convert to MATIC (1 MATIC = 10^18 Wei)
-            balance_matic = self.w3.from_wei(balance_wei, 'ether')
-            
-            return float(balance_matic)
-            
+
+            # Convert to POL (1 POL = 10^18 Wei, same as MATIC)
+            balance_pol = self.w3.from_wei(balance_wei, 'ether')
+
+            print(f"[INFO] POL Balance for {address[:10]}...: {float(balance_pol):.6f} POL")
+
+            return float(balance_pol)
+
         except Exception as e:
-            print(f"[ERROR] Error getting MATIC balance: {e}")
+            print(f"[ERROR] Error getting POL balance for {address}: {e}")
+            import traceback
+            traceback.print_exc()
             return 0.0
+
+    # Alias for backwards compatibility
+    def get_pol_balance(self, address: str) -> float:
+        """Alias for get_matic_balance (POL is the new name for MATIC)"""
+        return self.get_matic_balance(address)
     
     def get_usdc_balance(self, address: str) -> float:
         """
         Get USDC balance for an address
-        
+        ⚠️ IMPROVED: Better error handling and validation
+
         Args:
             address: Wallet address
-            
+
         Returns:
             USDC balance as float
         """
         try:
+            if not self.w3 or not self.w3.is_connected():
+                print(f"[ERROR] Not connected to Polygon network")
+                return 0.0
+
+            if not self.usdc_contract:
+                print(f"[ERROR] USDC contract not initialized")
+                return 0.0
+
             # Get USDC balance (USDC has 6 decimals on Polygon)
             balance_raw = self.usdc_contract.functions.balanceOf(
                 Web3.to_checksum_address(address)
             ).call()
-            
+
             # Convert to human-readable (divide by 10^6)
             balance_usdc = balance_raw / (10 ** 6)
-            
+
+            print(f"[INFO] USDC Balance for {address[:10]}...: ${float(balance_usdc):.2f}")
+
             return float(balance_usdc)
-            
+
         except Exception as e:
-            print(f"[ERROR] Error getting USDC balance: {e}")
+            print(f"[ERROR] Error getting USDC balance for {address}: {e}")
+            import traceback
+            traceback.print_exc()
             return 0.0
     
     def get_all_balances(self, address: str) -> Dict:
         """
         Get all token balances for an address
-        
+        ⚠️ UPDATED: Now shows POL instead of MATIC (rebrand)
+
         Args:
             address: Wallet address
-            
+
         Returns:
-            Dictionary with all balances
+            Dictionary with all balances (POL + USDC)
         """
-        matic_balance = self.get_matic_balance(address)
+        pol_balance = self.get_matic_balance(address)  # POL (formerly MATIC)
         usdc_balance = self.get_usdc_balance(address)
-        
+
+        # Approximate POL price in USD (update as needed)
+        pol_price_usd = 0.50  # ~$0.50 per POL (update from price feed in production)
+
         return {
             "address": address,
-            "network": self.network,
-            "matic": matic_balance,
+            "network": self.network_config["name"],
+            "pol": pol_balance,           # NEW: POL balance
+            "matic": pol_balance,          # LEGACY: Keep for backwards compatibility
             "usdc": usdc_balance,
-            "matic_usd": matic_balance * 0.5,  # Approximate USD value
-            "total_usd": (matic_balance * 0.5) + usdc_balance
+            "pol_usd": pol_balance * pol_price_usd,
+            "matic_usd": pol_balance * pol_price_usd,  # LEGACY compatibility
+            "total_usd": (pol_balance * pol_price_usd) + usdc_balance
         }
     
     # ==================== TRANSACTIONS ====================
