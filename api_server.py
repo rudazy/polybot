@@ -134,98 +134,235 @@ def read_root():
 
 @app.get("/health")
 def health_check():
-    """Detailed health check"""
-    return {
-        "api": "healthy",
-        "database": "connected",
-        "polymarket_api": "connected",
-        "active_bots": len(active_bots)
-    }
+    """
+    Detailed health check with service status
+    ⚠️ ENHANCED: Now includes MongoDB and Polymarket API status
+    """
+    try:
+        # Test MongoDB connection
+        mongo_healthy = False
+        try:
+            db.client.server_info()
+            mongo_healthy = True
+        except Exception as e:
+            print(f"[HEALTH] MongoDB error: {e}")
+
+        # Test Polymarket API connection
+        polymarket_healthy = False
+        try:
+            test_markets = polymarket.get_markets(limit=1)
+            polymarket_healthy = len(test_markets) > 0
+        except Exception as e:
+            print(f"[HEALTH] Polymarket API error: {e}")
+
+        return {
+            "status": "healthy" if (mongo_healthy and polymarket_healthy) else "degraded",
+            "api": "online",
+            "database": "connected" if mongo_healthy else "disconnected",
+            "polymarket_api": "connected" if polymarket_healthy else "disconnected",
+            "active_bots": len(active_bots),
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e)
+        }
+
+
+@app.get("/debug/test-polymarket")
+def test_polymarket_api():
+    """
+    Test endpoint to debug Polymarket API connection
+    Returns raw market data for troubleshooting
+    """
+    try:
+        print("[DEBUG] Testing Polymarket API connection...")
+
+        # Fetch one market
+        markets = polymarket.get_markets(limit=1)
+
+        if not markets:
+            return {
+                "success": False,
+                "error": "No markets returned from Polymarket API"
+            }
+
+        # Return raw market data for inspection
+        raw_market = markets[0]
+        formatted_market = polymarket.format_market_data(raw_market)
+
+        return {
+            "success": True,
+            "message": "Polymarket API is working",
+            "raw_market_sample": raw_market,
+            "formatted_market_sample": formatted_market,
+            "fields_available": list(raw_market.keys())
+        }
+
+    except Exception as e:
+        print(f"[DEBUG ERROR] {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+        return {
+            "success": False,
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
 
 
 # ==================== USER ENDPOINTS ====================
 
 @app.post("/users/register")
 def register_user(user: UserCreate):
-    """Register a new user with password"""
-    # Check if user already exists
-    existing_user = db.get_user(email=user.email)
+    """
+    Register a new user with password
+    ⚠️ FIXED: Now includes detailed error logging and auto-creates wallet
+    """
+    try:
+        print(f"[REGISTER] Attempting to register user: {user.email}")
 
-    if existing_user:
+        # Check if user already exists
+        existing_user = db.get_user(email=user.email)
+
+        if existing_user:
+            print(f"[REGISTER] User already exists: {user.email}")
+            return {
+                "success": False,
+                "message": "Email already registered. Please login instead."
+            }
+
+        # Hash the password
+        print(f"[REGISTER] Hashing password for {user.email}")
+        hashed_password = hash_password(user.password)
+
+        # Create user with hashed password
+        print(f"[REGISTER] Creating user in database: {user.email}")
+        user_id = db.create_user(user.email, user.wallet_address)
+
+        if not user_id:
+            print(f"[REGISTER ERROR] Failed to create user in database")
+            return {
+                "success": False,
+                "message": "Registration failed. Database error.",
+                "error": "Could not create user in database"
+            }
+
+        # Store the hashed password
+        from bson import ObjectId
+        print(f"[REGISTER] Storing password for user ID: {user_id}")
+        db.db['users'].update_one(
+            {'_id': ObjectId(user_id)},
+            {'$set': {'password': hashed_password}}
+        )
+
+        # AUTO-CREATE IN-APP WALLET FOR NEW USER
+        print(f"[REGISTER] Auto-creating wallet for user: {user_id}")
+        wallet_result = wallet_manager.create_in_app_wallet(user_id)
+
+        if not wallet_result.get('success'):
+            print(f"[REGISTER WARNING] Wallet creation failed: {wallet_result.get('error')}")
+            # Continue anyway - user can create wallet later
+        else:
+            print(f"[REGISTER] Wallet created: {wallet_result.get('wallet_address')}")
+
+        # Get complete user data
+        user_data = db.get_user(user_id=user_id)
+
+        # Remove password from response
+        if 'password' in user_data:
+            del user_data['password']
+
+        print(f"[REGISTER] ✅ Registration successful for {user.email}")
+
         return {
-            "success": False,
-            "message": "Email already registered. Please login instead."
+            "success": True,
+            "message": "User registered successfully",
+            "user": user_data,
+            "wallet": wallet_result if wallet_result.get('success') else None
         }
 
-    # Hash the password
-    hashed_password = hash_password(user.password)
+    except Exception as e:
+        # DETAILED ERROR LOGGING
+        print(f"[REGISTER ERROR] ❌ Registration failed for {user.email}")
+        print(f"[REGISTER ERROR] Error type: {type(e).__name__}")
+        print(f"[REGISTER ERROR] Error message: {str(e)}")
 
-    # Create user with hashed password
-    user_id = db.create_user(user.email, user.wallet_address)
+        import traceback
+        traceback.print_exc()
 
-    if not user_id:
         return {
             "success": False,
-            "message": "Registration failed. Please try again."
+            "message": "Registration failed due to server error",
+            "error": str(e),
+            "error_type": type(e).__name__
         }
-
-    # Store the hashed password
-    db.db['users'].update_one(
-        {'_id': user_id},
-        {'$set': {'password': hashed_password}}
-    )
-
-    user_data = db.get_user(user_id=user_id)
-    # Remove password from response
-    if 'password' in user_data:
-        del user_data['password']
-
-    return {
-        "success": True,
-        "message": "User registered successfully",
-        "user": user_data
-    }
 
 
 @app.post("/users/login")
 def login_user(user: UserLogin):
-    """Login user with password verification"""
-    user_data = db.get_user(email=user.email)
+    """
+    Login user with password verification
+    ⚠️ FIXED: Added detailed error logging
+    """
+    try:
+        print(f"[LOGIN] Attempting login for: {user.email}")
 
-    if not user_data:
-        return {
-            "success": False,
-            "message": "User not found"
-        }
+        user_data = db.get_user(email=user.email)
 
-    # Check if user has a password set
-    stored_password = user_data.get('password')
-    if not stored_password:
-        # Legacy user without password - allow login but should set password
+        if not user_data:
+            print(f"[LOGIN] User not found: {user.email}")
+            return {
+                "success": False,
+                "message": "User not found"
+            }
+
+        # Check if user has a password set
+        stored_password = user_data.get('password')
+        if not stored_password:
+            print(f"[LOGIN WARNING] Legacy user without password: {user.email}")
+            # Legacy user without password - allow login but should set password
+            if 'password' in user_data:
+                del user_data['password']
+            return {
+                "success": True,
+                "message": "Login successful",
+                "user": user_data
+            }
+
+        # Verify password
+        if not verify_password(user.password, stored_password):
+            print(f"[LOGIN] Invalid password for: {user.email}")
+            return {
+                "success": False,
+                "message": "Invalid password"
+            }
+
+        # Remove password from response
         if 'password' in user_data:
             del user_data['password']
+
+        print(f"[LOGIN] ✅ Login successful for: {user.email}")
+
         return {
             "success": True,
             "message": "Login successful",
             "user": user_data
         }
 
-    # Verify password
-    if not verify_password(user.password, stored_password):
+    except Exception as e:
+        print(f"[LOGIN ERROR] ❌ Login failed for {user.email}")
+        print(f"[LOGIN ERROR] Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
         return {
             "success": False,
-            "message": "Invalid password"
+            "message": "Login failed due to server error",
+            "error": str(e)
         }
-
-    # Remove password from response
-    if 'password' in user_data:
-        del user_data['password']
-
-    return {
-        "success": True,
-        "message": "Login successful",
-        "user": user_data
-    }
 
 
 @app.post("/users/reset-password")
@@ -288,45 +425,114 @@ def get_user_stats(user_id: str):
 def get_markets(limit: int = 20, category: str = "all", trending: bool = True):
     """
     Get active markets from Polymarket
-    ⚠️ FIXED: Now sorts by 24hr volume for trending markets
+    ⚠️ FIXED: Now sorts by 24hr volume for trending markets with error handling
     """
-    # Use trending markets sorted by 24hr volume
-    if trending:
-        markets = polymarket.get_trending_markets(limit=limit)
-    else:
-        markets = polymarket.get_markets(limit=limit)
+    try:
+        print(f"[MARKETS] Fetching markets (limit={limit}, trending={trending}, category={category})")
 
-    # Filter by category if specified
-    if category != "all":
-        markets = [m for m in markets if category.lower() in m.get('market_slug', '').lower()]
+        # Use trending markets sorted by 24hr volume
+        if trending:
+            markets = polymarket.get_trending_markets(limit=limit)
+        else:
+            markets = polymarket.get_markets(limit=limit)
 
-    # Format markets
-    formatted_markets = [polymarket.format_market_data(m) for m in markets]
+        if not markets:
+            print(f"[MARKETS WARNING] No markets returned from Polymarket API")
+            return {
+                "success": False,
+                "count": 0,
+                "markets": [],
+                "error": "No markets available from Polymarket API"
+            }
 
-    return {
-        "success": True,
-        "count": len(formatted_markets),
-        "markets": formatted_markets,
-        "trending": trending
-    }
+        print(f"[MARKETS] Retrieved {len(markets)} raw markets from Polymarket")
+
+        # Filter by category if specified
+        if category != "all":
+            markets = [m for m in markets if category.lower() in m.get('market_slug', '').lower()]
+            print(f"[MARKETS] Filtered to {len(markets)} markets for category: {category}")
+
+        # Format markets
+        formatted_markets = [polymarket.format_market_data(m) for m in markets]
+
+        print(f"[MARKETS] ✅ Returning {len(formatted_markets)} formatted markets")
+
+        # Log sample market for debugging
+        if formatted_markets:
+            sample = formatted_markets[0]
+            print(f"[MARKETS] Sample market: {sample['question'][:50]}... @ {sample['probability']:.1%}")
+
+        return {
+            "success": True,
+            "count": len(formatted_markets),
+            "markets": formatted_markets,
+            "trending": trending
+        }
+
+    except Exception as e:
+        print(f"[MARKETS ERROR] ❌ Failed to fetch markets")
+        print(f"[MARKETS ERROR] Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+        return {
+            "success": False,
+            "count": 0,
+            "markets": [],
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
 
 
 @app.get("/markets/search")
 def search_markets(query: str, limit: int = 100):
     """
     Search ALL markets by keyword
-    ⚠️ FIXED: Now searches comprehensively across all markets
+    ⚠️ FIXED: Now searches comprehensively across all markets with error handling
     """
-    markets = polymarket.search_markets(query, limit)
-    formatted_markets = [polymarket.format_market_data(m) for m in markets]
+    try:
+        print(f"[SEARCH] Searching markets for: '{query}' (limit={limit})")
 
-    return {
-        "success": True,
-        "count": len(formatted_markets),
-        "query": query,
-        "total_searched": f"Searched extensively to find all matches for '{query}'",
-        "markets": formatted_markets
-    }
+        markets = polymarket.search_markets(query, limit)
+
+        if not markets:
+            print(f"[SEARCH] No markets found for query: '{query}'")
+            return {
+                "success": True,
+                "count": 0,
+                "query": query,
+                "markets": [],
+                "message": f"No markets found matching '{query}'"
+            }
+
+        print(f"[SEARCH] Found {len(markets)} markets matching '{query}'")
+
+        formatted_markets = [polymarket.format_market_data(m) for m in markets]
+
+        print(f"[SEARCH] ✅ Returning {len(formatted_markets)} formatted results")
+
+        return {
+            "success": True,
+            "count": len(formatted_markets),
+            "query": query,
+            "total_searched": f"Searched extensively to find all matches for '{query}'",
+            "markets": formatted_markets
+        }
+
+    except Exception as e:
+        print(f"[SEARCH ERROR] ❌ Search failed for query: '{query}'")
+        print(f"[SEARCH ERROR] Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+        return {
+            "success": False,
+            "count": 0,
+            "query": query,
+            "markets": [],
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
 
 
 # ==================== TRADING ENDPOINTS ====================
