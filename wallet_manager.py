@@ -18,10 +18,22 @@ class WalletManager:
     """
     
     def __init__(self, db: MongoDatabase):
-        """Initialize wallet manager with blockchain connection"""
+        """
+        Initialize wallet manager with blockchain connection
+        ⚠️ ENHANCED: Graceful handling if blockchain connection fails
+        """
         self.db = db
-        self.blockchain = BlockchainManager()
-        print("[OK] Wallet Manager initialized with REAL blockchain")
+
+        try:
+            print("[WALLET] Initializing BlockchainManager...")
+            self.blockchain = BlockchainManager()
+            print("[WALLET] ✅ BlockchainManager initialized successfully")
+        except Exception as e:
+            print(f"[WALLET WARNING] ⚠️  BlockchainManager initialization failed: {e}")
+            print(f"[WALLET WARNING] Wallet creation will work but without balance checking")
+            self.blockchain = None
+
+        print("[WALLET] ✅ Wallet Manager initialized")
     
     # ==================== IN-APP WALLET CREATION ====================
     
@@ -29,6 +41,7 @@ class WalletManager:
         """
         Create a new in-app wallet with REAL blockchain private key
         ⚠️ FIXED: Now checks if wallet already exists to prevent address mismatch!
+        ⚠️ ENHANCED: Works even if blockchain RPC is down
 
         Args:
             user_id: User's database ID
@@ -38,13 +51,17 @@ class WalletManager:
         """
         try:
             from bson.objectid import ObjectId
+            from eth_account import Account
+            import secrets
+
+            print(f"[WALLET] Creating in-app wallet for user: {user_id}")
 
             # CRITICAL FIX: Check if wallet already exists for this user
             wallets_collection = self.db.db['wallets']
             existing_wallet = wallets_collection.find_one({"user_id": user_id})
 
             if existing_wallet:
-                print(f"[INFO] Wallet already exists for user {user_id}")
+                print(f"[WALLET] Wallet already exists for user {user_id}")
                 # Return existing wallet instead of creating a new one
                 existing_address = existing_wallet.get('wallet_address')
                 return {
@@ -55,19 +72,33 @@ class WalletManager:
                     "existing": True
                 }
 
-            # Generate REAL wallet using blockchain manager
-            wallet_result = self.blockchain.create_wallet()
+            # Generate REAL wallet - try blockchain manager first, fallback to direct creation
+            wallet_address = None
+            private_key = None
 
-            if not wallet_result['success']:
-                return {
-                    "success": False,
-                    "error": "Failed to create blockchain wallet"
-                }
+            if self.blockchain:
+                print(f"[WALLET] Using BlockchainManager to create wallet...")
+                try:
+                    wallet_result = self.blockchain.create_wallet()
 
-            wallet_address = wallet_result['address']
-            private_key = wallet_result['private_key']
+                    if wallet_result.get('success'):
+                        wallet_address = wallet_result['address']
+                        private_key = wallet_result['private_key']
+                        print(f"[WALLET] ✅ Wallet created via BlockchainManager")
+                    else:
+                        print(f"[WALLET WARNING] BlockchainManager failed, using fallback")
+                except Exception as e:
+                    print(f"[WALLET WARNING] BlockchainManager error: {e}, using fallback")
 
-            print(f"[SECURE] Created REAL blockchain wallet: {wallet_address}")
+            # Fallback: Create wallet directly if blockchain manager failed
+            if not wallet_address:
+                print(f"[WALLET] Creating wallet directly (fallback)...")
+                private_key = "0x" + secrets.token_hex(32)
+                account = Account.from_key(private_key)
+                wallet_address = account.address
+                print(f"[WALLET] ✅ Wallet created via fallback method")
+
+            print(f"[WALLET] Created wallet: {wallet_address}")
 
             # Encrypt private key before storing
             encrypted_key = self._encrypt_key(private_key)
@@ -84,12 +115,13 @@ class WalletManager:
             )
 
             # Store encrypted private key separately (more secure)
-            # NOTE: We don't delete old wallets anymore - we check first above
             wallets_collection.insert_one({
                 "user_id": user_id,
                 "wallet_address": wallet_address,
                 "private_key_encrypted": encrypted_key
             })
+
+            print(f"[WALLET] ✅ Wallet saved to database for user {user_id}")
 
             return {
                 "success": True,
@@ -99,10 +131,17 @@ class WalletManager:
             }
 
         except Exception as e:
-            print(f"[ERROR] Error creating wallet: {e}")
+            print(f"[WALLET ERROR] ❌ Error creating wallet for user {user_id}")
+            print(f"[WALLET ERROR] Error type: {type(e).__name__}")
+            print(f"[WALLET ERROR] Error message: {str(e)}")
+
+            import traceback
+            traceback.print_exc()
+
             return {
                 "success": False,
-                "error": str(e)
+                "error": str(e),
+                "error_type": type(e).__name__
             }
     
     # ==================== ENCRYPTION/DECRYPTION ====================
@@ -142,10 +181,11 @@ class WalletManager:
     def export_private_key(self, user_id: str) -> Optional[str]:
         """
         Export private key for in-app wallet (DANGEROUS - warn user!)
-        
+        ⚠️ ENHANCED: Better error messages for external wallets
+
         Args:
             user_id: User's database ID
-            
+
         Returns:
             Private key or None
         """
@@ -153,57 +193,89 @@ class WalletManager:
             # Get user wallet type
             from bson.objectid import ObjectId
             user = self.db.users.find_one({"_id": ObjectId(user_id)})
-            
+
             if not user:
-                print("[ERROR] User not found")
+                print(f"[EXPORT] ❌ User not found: {user_id}")
                 return None
-            
-            if user.get('wallet_type') != 'in-app':
-                print("[ERROR] Not an in-app wallet (cannot export external wallet keys)")
+
+            wallet_type = user.get('wallet_type', 'unknown')
+            wallet_address = user.get('wallet_address', 'unknown')
+
+            print(f"[EXPORT] Export request for user {user_id}")
+            print(f"[EXPORT] Wallet type: {wallet_type}")
+            print(f"[EXPORT] Wallet address: {wallet_address}")
+
+            if wallet_type != 'in-app':
+                print(f"[EXPORT] ❌ Cannot export {wallet_type} wallet keys!")
+                print(f"[EXPORT] External wallet keys are stored in your browser/wallet app (Rabby, MetaMask, etc.)")
                 return None
-            
+
             # Get encrypted private key
             wallets_collection = self.db.db['wallets']
             wallet = wallets_collection.find_one({"user_id": user_id})
-            
+
             if not wallet:
-                print("[ERROR] Wallet not found in database")
+                print(f"[EXPORT] ❌ Wallet private key not found in database")
+                print(f"[EXPORT] This might be an external wallet or key was never stored")
                 return None
-            
+
             # Decrypt and return
             private_key = self._decrypt_key(wallet['private_key_encrypted'])
-            
-            print(f"[WARNING] WARNING: Private key exported for user {user_id}")
-            
+
+            print(f"[EXPORT] ⚠️  WARNING: Private key exported for user {user_id}")
+            print(f"[EXPORT] Address: {wallet_address}")
+
             return private_key
-            
+
         except Exception as e:
-            print(f"[ERROR] Error exporting private key: {e}")
+            print(f"[EXPORT ERROR] ❌ Error exporting private key: {e}")
+            import traceback
+            traceback.print_exc()
             return None
     
     # ==================== EXTERNAL WALLET CONNECTION ====================
     
     def connect_external_wallet(self, user_id: str, wallet_address: str) -> Dict:
         """
-        Connect user's external wallet (MetaMask, WalletConnect, etc.)
-        
+        Connect user's external wallet (Rabby, MetaMask, WalletConnect, etc.)
+        ⚠️ ENHANCED: Better validation and logging
+
         Args:
             user_id: User's database ID
             wallet_address: External wallet address
-            
+
         Returns:
             Success status
         """
         try:
-            # Validate address using blockchain manager
-            if not self.blockchain.is_valid_address(wallet_address):
+            from bson.objectid import ObjectId
+            from web3 import Web3
+
+            print(f"[CONNECT] Connecting external wallet for user {user_id}")
+            print(f"[CONNECT] Wallet address provided: {wallet_address}")
+
+            # Validate address format (works without RPC)
+            if not Web3.is_address(wallet_address):
+                print(f"[CONNECT] ❌ Invalid wallet address format: {wallet_address}")
                 return {
                     "success": False,
-                    "error": "Invalid wallet address format"
+                    "error": "Invalid wallet address format. Must be a valid Ethereum address (0x...)"
                 }
-            
+
+            # Checksum the address
+            wallet_address = Web3.to_checksum_address(wallet_address)
+            print(f"[CONNECT] Checksummed address: {wallet_address}")
+
+            # Check if user exists
+            user = self.db.users.find_one({"_id": ObjectId(user_id)})
+            if not user:
+                print(f"[CONNECT] ❌ User not found: {user_id}")
+                return {
+                    "success": False,
+                    "error": "User not found"
+                }
+
             # Store wallet connection
-            from bson.objectid import ObjectId
             self.db.users.update_one(
                 {"_id": ObjectId(user_id)},
                 {
@@ -213,21 +285,27 @@ class WalletManager:
                     }
                 }
             )
-            
-            print(f"🦊 Connected external wallet: {wallet_address}")
-            
+
+            print(f"[CONNECT] ✅ Connected external wallet: {wallet_address}")
+            print(f"[CONNECT] Wallet type: external (Rabby/MetaMask/etc.)")
+
             return {
                 "success": True,
                 "wallet_address": wallet_address,
                 "wallet_type": "external",
-                "message": "External wallet connected successfully!"
+                "message": "External wallet connected successfully!",
+                "note": "Private keys for external wallets are stored in your browser wallet extension, not on our servers."
             }
-            
+
         except Exception as e:
-            print(f"[ERROR] Error connecting wallet: {e}")
+            print(f"[CONNECT ERROR] ❌ Error connecting wallet: {e}")
+            import traceback
+            traceback.print_exc()
+
             return {
                 "success": False,
-                "error": str(e)
+                "error": str(e),
+                "error_type": type(e).__name__
             }
     
     # ==================== WALLET BALANCE (REAL BLOCKCHAIN) ====================

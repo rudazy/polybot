@@ -896,38 +896,66 @@ def export_private_key(user_id: str, key_export: PrivateKeyExport):
     ⚠️ DANGEROUS: Export private key for in-app wallet
     Only works for in-app wallets, not external wallets
     Requires password verification
+    ⚠️ ENHANCED: Better error messages for different wallet types
     """
+    print(f"[EXPORT API] Private key export requested for user: {user_id}")
+
     # Verify user password first
     user_data = db.get_user(user_id=user_id)
 
     if not user_data:
+        print(f"[EXPORT API] ❌ User not found: {user_id}")
         return {
             "success": False,
             "message": "User not found"
         }
 
-    # Check password
+    wallet_type = user_data.get('wallet_type', 'unknown')
+    wallet_address = user_data.get('wallet_address', 'unknown')
+
+    print(f"[EXPORT API] Wallet type: {wallet_type}")
+    print(f"[EXPORT API] Wallet address: {wallet_address}")
+
+    # Check if external wallet
+    if wallet_type == 'external':
+        print(f"[EXPORT API] ❌ Cannot export external wallet keys")
+        return {
+            "success": False,
+            "message": "Cannot export external wallet private key",
+            "wallet_type": "external",
+            "explanation": "You connected an external wallet (Rabby, MetaMask, etc.). The private keys for external wallets are stored securely in your browser wallet extension, not on our servers. To export your private key, use your wallet app (Rabby/MetaMask settings)."
+        }
+
+    # Check password for in-app wallets
     stored_password = user_data.get('password')
     if stored_password:
         if not verify_password(key_export.password, stored_password):
+            print(f"[EXPORT API] ❌ Invalid password")
             return {
                 "success": False,
                 "message": "Invalid password"
             }
     # If no password set (legacy user), allow export but warn
 
+    print(f"[EXPORT API] Attempting to export in-app wallet key...")
     private_key = wallet_manager.export_private_key(user_id)
 
     if private_key:
+        print(f"[EXPORT API] ✅ Private key exported successfully")
         return {
             "success": True,
             "private_key": private_key,
+            "wallet_address": wallet_address,
+            "wallet_type": "in-app",
             "warning": "⚠️ KEEP THIS SAFE! Never share your private key with anyone!"
         }
     else:
+        print(f"[EXPORT API] ❌ Private key export failed")
         return {
             "success": False,
-            "message": "Cannot export private key. Either you don't have an in-app wallet or export failed."
+            "message": "Cannot export private key",
+            "wallet_type": wallet_type,
+            "explanation": "Private key not found in database. This might be because you have an external wallet, or the key was never stored."
         }
 
 
