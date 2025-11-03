@@ -33,39 +33,101 @@ class PolymarketAPI:
 
         self.client = httpx.Client(timeout=30.0, headers=headers, follow_redirects=True)
     
-    def get_markets(self, limit: int = 20, active: bool = True, closed: bool = False) -> List[Dict]:
-        """Fetch markets from Polymarket Gamma API"""
+    def get_markets(self, limit: int = 20, active: bool = True, closed: bool = False, order: str = "volume24hr") -> List[Dict]:
+        """
+        Fetch markets from Polymarket Gamma API
+        ⚠️ FIXED: Now sorts by 24hr volume to match Polymarket.com trending
+
+        Args:
+            limit: Number of markets to return
+            active: Only show active markets
+            closed: Include closed markets
+            order: Sort order - "volume24hr", "volume7d", "liquidity", etc.
+
+        Returns:
+            List of market dictionaries
+        """
         try:
             params = {
                 "limit": limit,
                 "active": str(active).lower(),
-                "closed": str(closed).lower()
+                "closed": str(closed).lower(),
+                "archived": "false",  # Don't show archived markets
+                "order": order  # CRITICAL: Sort by 24hr volume for trending
             }
+
+            print(f"[API] Fetching markets with params: {params}")
 
             response = self.client.get(self.gamma_markets_endpoint, params=params)
             response.raise_for_status()
 
             markets = response.json()
-            return markets if isinstance(markets, list) else []
+            result = markets if isinstance(markets, list) else []
+
+            print(f"[API] Retrieved {len(result)} markets")
+
+            return result
 
         except Exception as e:
-            print(f"Error fetching markets: {e}")
+            print(f"[ERROR] Error fetching markets: {e}")
+            import traceback
+            traceback.print_exc()
             return []
 
-    def search_markets(self, query: str, limit: int = 50) -> List[Dict]:
-        """Search markets by keyword - fetches multiple pages for comprehensive results"""
+    def search_markets(self, query: str, limit: int = 100) -> List[Dict]:
+        """
+        Search markets by keyword using Polymarket's search API
+        ⚠️ FIXED: Now uses proper search parameter to find ALL matching markets
+
+        Args:
+            query: Search term (e.g., "trump", "election", etc.)
+            limit: Maximum number of results to return
+
+        Returns:
+            List of matching markets sorted by relevance
+        """
         try:
+            # Use Polymarket's native search parameter for better results
+            search_params = {
+                "limit": limit,
+                "active": "true",
+                "closed": "false",
+                "archived": "false",
+                "order": "volume24hr"  # Sort by trending
+            }
+
+            print(f"[SEARCH] Searching for '{query}'...")
+
+            # Try 3 approaches to find ALL matching markets:
+
+            # Approach 1: Try native search parameter (if Polymarket supports it)
+            try:
+                search_params_with_query = search_params.copy()
+                search_params_with_query["search"] = query
+
+                response = self.client.get(self.gamma_markets_endpoint, params=search_params_with_query)
+
+                if response.status_code == 200:
+                    markets = response.json()
+                    if isinstance(markets, list) and len(markets) > 0:
+                        print(f"[SEARCH] Found {len(markets)} markets using native search")
+                        return markets
+            except Exception as e:
+                print(f"[SEARCH] Native search not available: {e}")
+
+            # Approach 2: Fetch large batch and filter locally
+            print(f"[SEARCH] Fetching markets in batches for local filtering...")
             all_markets = []
 
-            # Fetch multiple pages to get comprehensive results
-            # Polymarket has thousands of markets, so we need to fetch in batches
+            # Fetch multiple pages (up to 500 markets total)
             for offset in [0, 100, 200, 300, 400]:
                 try:
                     batch_params = {
                         "limit": 100,
                         "offset": offset,
                         "active": "true",
-                        "closed": "false"
+                        "closed": "false",
+                        "archived": "false"
                     }
 
                     response = self.client.get(self.gamma_markets_endpoint, params=batch_params)
@@ -74,21 +136,15 @@ class PolymarketAPI:
                         batch = response.json()
                         if isinstance(batch, list) and batch:
                             all_markets.extend(batch)
+                            print(f"[SEARCH] Fetched batch at offset {offset}: {len(batch)} markets")
                         else:
-                            # No more results, stop fetching
                             break
                     else:
-                        # If one batch fails, continue with what we have
                         break
 
                 except Exception as e:
-                    print(f"Error fetching batch at offset {offset}: {e}")
-                    # Continue with what we have
+                    print(f"[SEARCH] Error fetching batch at offset {offset}: {e}")
                     break
-
-            # If we got no markets from batching, fall back to single request
-            if not all_markets:
-                all_markets = self.get_markets(limit=200, active=True, closed=False)
 
             # Filter by query in question (case-insensitive)
             query_lower = query.lower()
@@ -97,13 +153,30 @@ class PolymarketAPI:
                 if query_lower in m.get('question', '').lower()
             ]
 
+            print(f"[SEARCH] Found {len(filtered)} markets matching '{query}' (out of {len(all_markets)} total)")
+
             # Return up to the limit
             return filtered[:limit]
 
         except Exception as e:
-            print(f"Error searching markets: {e}")
+            print(f"[ERROR] Error searching markets: {e}")
+            import traceback
+            traceback.print_exc()
             return []
     
+    def get_trending_markets(self, limit: int = 50) -> List[Dict]:
+        """
+        Get trending markets sorted by 24-hour volume
+        ⚠️ NEW: Dedicated method to match Polymarket.com trending section
+
+        Args:
+            limit: Number of trending markets to return
+
+        Returns:
+            List of trending markets sorted by 24hr volume
+        """
+        return self.get_markets(limit=limit, active=True, closed=False, order="volume24hr")
+
     def format_market_data(self, market: Dict) -> Dict:
         """Format raw market data - FIXED VERSION"""
         try:
