@@ -178,29 +178,81 @@ class PolymarketAPI:
         return self.get_markets(limit=limit, active=True, closed=False, order="volume24hr")
 
     def format_market_data(self, market: Dict) -> Dict:
-        """Format raw market data - FIXED VERSION"""
+        """
+        Format raw market data from Polymarket API
+        ⚠️ FIXED: Now correctly extracts probability, volume, and all fields
+        """
         try:
-            formatted = {
-                "id": market.get("condition_id", "N/A"),
-                "question": market.get("question", "Unknown"),
-                "volume": float(market.get("volume", 0)),
-                "liquidity": float(market.get("liquidity", 0)),
-            }
-            
-            # Safely get outcomes
+            # Extract base fields
+            market_id = market.get("id") or market.get("condition_id", "unknown")
+            question = market.get("question", "Unknown Market")
+
+            # Extract volume data (try multiple field names)
+            volume = float(market.get("volume", 0))
+            volume_24hr = float(market.get("volume24hr", 0))
+            liquidity = float(market.get("liquidity", 0))
+
+            # Extract outcomes and prices
             outcomes = market.get("outcomes", [])
-            if isinstance(outcomes, list) and len(outcomes) >= 2:
-                formatted["yes_price"] = float(outcomes[0].get("price", 0.5))
-                formatted["no_price"] = float(outcomes[1].get("price", 0.5))
-            else:
-                formatted["yes_price"] = 0.5
-                formatted["no_price"] = 0.5
-            
+            outcome_prices = market.get("outcomePrices", [])
+
+            # Try to get YES probability from multiple possible locations
+            yes_price = 0.5  # default
+            no_price = 0.5   # default
+
+            if outcome_prices and len(outcome_prices) >= 1:
+                # outcomePrices is already a probability (0-1 range)
+                yes_price = float(outcome_prices[0]) if outcome_prices[0] else 0.5
+                no_price = float(outcome_prices[1]) if len(outcome_prices) > 1 and outcome_prices[1] else (1 - yes_price)
+            elif outcomes and len(outcomes) >= 1:
+                # Try to get from outcomes array
+                yes_price = float(outcomes[0].get("price", 0.5))
+                no_price = float(outcomes[1].get("price", 0.5)) if len(outcomes) > 1 else (1 - yes_price)
+
+            # Build formatted response
+            formatted = {
+                "id": market_id,
+                "question": question,
+                "probability": yes_price,  # This is what frontend expects (0-1 range)
+                "yes_price": yes_price,
+                "no_price": no_price,
+                "volume": volume,
+                "volume24hr": volume_24hr,
+                "liquidity": liquidity,
+                "market_slug": market.get("market_slug", ""),
+                "end_date": market.get("end_date_iso"),
+                "active": market.get("active", True),
+                "closed": market.get("closed", False)
+            }
+
+            # Log for debugging (only first market to avoid spam)
+            if not hasattr(self, '_logged_first_market'):
+                print(f"[FORMAT] Sample market data:")
+                print(f"  Question: {question[:50]}...")
+                print(f"  Probability: {yes_price:.1%}")
+                print(f"  Volume 24hr: ${volume_24hr:,.0f}")
+                print(f"  Volume Total: ${volume:,.0f}")
+                self._logged_first_market = True
+
             return formatted
-            
+
         except Exception as e:
-            print(f"Error formatting: {e}")
-            return {"question": "N/A", "volume": 0, "yes_price": 0, "no_price": 0}
+            print(f"[FORMAT ERROR] Error formatting market: {e}")
+            print(f"  Raw market data: {market}")
+            import traceback
+            traceback.print_exc()
+
+            # Return safe default
+            return {
+                "id": "error",
+                "question": market.get("question", "Error loading market"),
+                "probability": 0.5,
+                "yes_price": 0.5,
+                "no_price": 0.5,
+                "volume": 0,
+                "volume24hr": 0,
+                "liquidity": 0
+            }
 
 
 def test_api():
