@@ -17,6 +17,7 @@ class MongoDatabase:
     def __init__(self, connection_string: str = None):
         """
         Initialize MongoDB connection
+        ⚠️ ENHANCED: Now includes detailed connection diagnostics
 
         Args:
             connection_string: MongoDB connection URI
@@ -27,49 +28,116 @@ class MongoDatabase:
             if not connection_string:
                 # Fallback to default (for development)
                 connection_string = "mongodb+srv://luda:1234luda@cluster0.byvm5pb.mongodb.net/?appName=Cluster0"
-        
+
+        print(f"[DB] Initializing MongoDB connection...")
+        print(f"[DB] Connection string: {connection_string[:50]}...")
+
         try:
-            self.client = MongoClient(connection_string)
+            self.client = MongoClient(connection_string, serverSelectionTimeoutMS=10000)
             self.db = self.client['polymarket_bot']
-            
+
+            print(f"[DB] Database: {self.db.name}")
+
             # Collections
             self.users = self.db['users']
             self.trades = self.db['trades']
             self.settings = self.db['settings']
             self.points = self.db['points']
             self.activity = self.db['activity_log']
-            
+
+            print(f"[DB] Testing connection...")
             # Test connection
-            self.client.server_info()
-            print("[OK] Connected to MongoDB Atlas!")
+            server_info = self.client.server_info()
+            print(f"[DB] ✅ Connected to MongoDB Atlas!")
+            print(f"[DB] MongoDB version: {server_info.get('version', 'unknown')}")
+
+            # List existing collections for debugging
+            existing_collections = self.db.list_collection_names()
+            print(f"[DB] Existing collections: {existing_collections}")
 
             # Create indexes
+            print(f"[DB] Creating indexes...")
             self.create_indexes()
 
+            print(f"[DB] ✅ MongoDB initialization complete")
+
         except Exception as e:
-            print(f"[ERROR] MongoDB connection error: {e}")
+            print(f"[DB ERROR] ❌ MongoDB connection failed!")
+            print(f"[DB ERROR] Error type: {type(e).__name__}")
+            print(f"[DB ERROR] Error message: {str(e)}")
+
+            import traceback
+            print(f"[DB ERROR] Stack trace:")
+            traceback.print_exc()
+
             raise
     
     def create_indexes(self):
-        """Create database indexes for performance"""
+        """
+        Create database indexes for performance
+        ⚠️ ENHANCED: Better error handling for existing indexes
+        """
         try:
-            self.users.create_index("email", unique=True)
-            self.users.create_index("wallet_address", unique=True, sparse=True)
-            self.trades.create_index("user_id")
-            self.settings.create_index("user_id", unique=True)
-            self.points.create_index("user_id")
-            print("[OK] Database indexes created!")
+            print(f"[DB] Creating index on users.email (unique)...")
+            try:
+                self.users.create_index("email", unique=True)
+            except Exception as e:
+                if "already exists" in str(e):
+                    print(f"[DB] Index users.email already exists (OK)")
+                else:
+                    print(f"[DB WARNING] Could not create users.email index: {e}")
+
+            print(f"[DB] Creating index on users.wallet_address (unique, sparse)...")
+            try:
+                self.users.create_index("wallet_address", unique=True, sparse=True)
+            except Exception as e:
+                if "already exists" in str(e):
+                    print(f"[DB] Index users.wallet_address already exists (OK)")
+                else:
+                    print(f"[DB WARNING] Could not create users.wallet_address index: {e}")
+
+            print(f"[DB] Creating index on trades.user_id...")
+            try:
+                self.trades.create_index("user_id")
+            except Exception as e:
+                print(f"[DB WARNING] Could not create trades.user_id index: {e}")
+
+            print(f"[DB] Creating index on settings.user_id (unique)...")
+            try:
+                self.settings.create_index("user_id", unique=True)
+            except Exception as e:
+                if "already exists" in str(e):
+                    print(f"[DB] Index settings.user_id already exists (OK)")
+                else:
+                    print(f"[DB WARNING] Could not create settings.user_id index: {e}")
+
+            print(f"[DB] Creating index on points.user_id...")
+            try:
+                self.points.create_index("user_id")
+            except Exception as e:
+                print(f"[DB WARNING] Could not create points.user_id index: {e}")
+
+            print("[DB] ✅ Database indexes created/verified!")
+
         except Exception as e:
-            print(f"[WARNING] Index creation warning: {e}")
+            print(f"[DB WARNING] Index creation error: {e}")
+            import traceback
+            traceback.print_exc()
     
     # USER OPERATIONS
     
     def create_user(self, email: str, wallet_address: str = None) -> Optional[str]:
-        """Create a new user"""
+        """
+        Create a new user
+        ⚠️ ENHANCED: Now includes detailed error logging for debugging
+        """
         try:
+            print(f"[DB] Creating user: {email}")
+            print(f"[DB] Wallet address: {wallet_address}")
+
             trial_start = datetime.now()
             trial_end = trial_start + timedelta(days=7)
-            
+
             user_doc = {
                 "email": email,
                 "wallet_address": wallet_address,
@@ -81,10 +149,21 @@ class MongoDatabase:
                 "total_volume": 0.0,
                 "created_at": datetime.now()
             }
-            
+
+            print(f"[DB] Inserting user document into database...")
+
+            # Check if MongoDB client is connected
+            if not self.client:
+                print(f"[DB ERROR] MongoDB client is not initialized!")
+                return None
+
+            # Try to insert user
             result = self.users.insert_one(user_doc)
             user_id = str(result.inserted_id)
-            
+
+            print(f"[DB] ✅ User inserted with ID: {user_id}")
+            print(f"[DB] Creating default settings for user...")
+
             # Create default settings
             settings_doc = {
                 "user_id": user_id,
@@ -100,12 +179,27 @@ class MongoDatabase:
                 "take_profit": 20.0  # Default 20% take profit
             }
             self.settings.insert_one(settings_doc)
-            
-            print(f"[OK] User created: {email} (ID: {user_id})")
+
+            print(f"[DB] ✅ User created successfully: {email} (ID: {user_id})")
             return user_id
 
         except Exception as e:
-            print(f"[ERROR] Error creating user: {e}")
+            print(f"[DB ERROR] ❌ Failed to create user: {email}")
+            print(f"[DB ERROR] Error type: {type(e).__name__}")
+            print(f"[DB ERROR] Error message: {str(e)}")
+            print(f"[DB ERROR] Error details: {repr(e)}")
+
+            # Print full stack trace
+            import traceback
+            print(f"[DB ERROR] Stack trace:")
+            traceback.print_exc()
+
+            # Check specific error types
+            if "duplicate key" in str(e).lower():
+                print(f"[DB ERROR] Duplicate email detected: {email}")
+            elif "connection" in str(e).lower():
+                print(f"[DB ERROR] MongoDB connection issue")
+
             return None
     
     def get_user(self, user_id: str = None, email: str = None) -> Optional[Dict]:
