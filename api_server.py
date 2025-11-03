@@ -213,6 +213,86 @@ def test_polymarket_api():
         }
 
 
+@app.post("/debug/wipe-database")
+def wipe_database_endpoint(confirm: str = None):
+    """
+    ⚠️ DANGEROUS: Wipe all data from MongoDB database
+    Requires confirm parameter = "WIPE_EVERYTHING"
+
+    Usage: POST /debug/wipe-database?confirm=WIPE_EVERYTHING
+    """
+    try:
+        # Require confirmation
+        if confirm != "WIPE_EVERYTHING":
+            return {
+                "success": False,
+                "error": "Confirmation required",
+                "message": "To wipe database, add parameter: ?confirm=WIPE_EVERYTHING",
+                "warning": "This will DELETE ALL DATA including users, trades, wallets, settings, and points!"
+            }
+
+        print("[WIPE] ⚠️  DATABASE WIPE REQUESTED VIA API")
+
+        # Get all collections
+        collection_names = db.db.list_collection_names()
+
+        if not collection_names:
+            return {
+                "success": True,
+                "message": "Database is already empty",
+                "collections_wiped": []
+            }
+
+        print(f"[WIPE] Found {len(collection_names)} collections to delete")
+
+        # Count total documents before deletion
+        total_before = 0
+        collection_counts = {}
+        for name in collection_names:
+            count = db.db[name].count_documents({})
+            collection_counts[name] = count
+            total_before += count
+            print(f"[WIPE] {name}: {count} documents")
+
+        print(f"[WIPE] Total documents to delete: {total_before}")
+
+        # Delete all data from each collection
+        deleted_total = 0
+        wiped_collections = []
+
+        for name in collection_names:
+            result = db.db[name].delete_many({})
+            deleted_count = result.deleted_count
+            deleted_total += deleted_count
+            wiped_collections.append({
+                "collection": name,
+                "documents_before": collection_counts[name],
+                "documents_deleted": deleted_count
+            })
+            print(f"[WIPE] ✅ Deleted {deleted_count} documents from {name}")
+
+        print(f"[WIPE] ✅ DATABASE WIPE COMPLETE - Deleted {deleted_total} documents")
+
+        return {
+            "success": True,
+            "message": "Database wiped successfully",
+            "total_documents_deleted": deleted_total,
+            "collections_wiped": wiped_collections,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        print(f"[WIPE ERROR] ❌ Database wipe failed: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+        return {
+            "success": False,
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
+
+
 # ==================== USER ENDPOINTS ====================
 
 @app.post("/users/register")
