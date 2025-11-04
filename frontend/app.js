@@ -665,19 +665,19 @@ async function checkUSDCApprovalStatus(walletType) {
         if (data.success && !data.is_approved) {
             // Show button if USDC is not approved
             approveBtn.style.display = 'block';
-            approveBtn.textContent = '✅ Approve USDC';
+            approveBtn.textContent = '✅ Approve';
             approveBtn.disabled = false;
             approveBtn.style.opacity = '1';
         } else if (data.success && data.is_approved) {
             // Show approved status
             approveBtn.style.display = 'block';
-            approveBtn.textContent = '✅ USDC Approved';
+            approveBtn.textContent = '✅ Approved';
             approveBtn.disabled = true;
             approveBtn.style.opacity = '0.7';
         } else {
             // Show button by default (assume not approved if can't check)
             approveBtn.style.display = 'block';
-            approveBtn.textContent = '✅ Approve USDC';
+            approveBtn.textContent = '✅ Approve';
             approveBtn.disabled = false;
             approveBtn.style.opacity = '1';
         }
@@ -685,7 +685,7 @@ async function checkUSDCApprovalStatus(walletType) {
         console.error('Error checking USDC approval:', error);
         // Show button on error (better to show than hide)
         approveBtn.style.display = 'block';
-        approveBtn.textContent = '✅ Approve USDC';
+        approveBtn.textContent = '✅ Approve';
         approveBtn.disabled = false;
         approveBtn.style.opacity = '1';
     }
@@ -695,11 +695,12 @@ async function handleApproveUSDC() {
     const approveBtn = document.getElementById('approve-usdc-btn');
 
     const confirmed = confirm(
-        "💰 Approve USDC for Trading?\n\n" +
-        "This allows Polymarket Exchange to use your USDC for trading.\n\n" +
+        "💰 Approve USDC.e for Trading?\n\n" +
+        "This allows Polymarket Exchange to use your USDC.e for trading.\n\n" +
         "• One-time approval (never need to do this again)\n" +
-        "• Small gas fee required (~$0.01-0.05 POL)\n" +
-        "• Transaction takes 5-30 seconds\n\n" +
+        "• Small gas fee required (~$0.005-0.01 POL)\n" +
+        "• Transaction takes 5-30 seconds\n" +
+        "• Make sure you have POL for gas fees\n\n" +
         "Click OK to approve."
     );
 
@@ -709,7 +710,7 @@ async function handleApproveUSDC() {
         // Show loading state
         approveBtn.disabled = true;
         approveBtn.textContent = '⏳ Approving...';
-        showNotification('⏳ Approving USDC... Please wait', 'info');
+        showNotification('⏳ Approving USDC.e... This may take up to 30 seconds', 'info');
 
         const response = await fetch(`${API_URL}/wallet/approve-usdc/${currentUserId}`, {
             method: 'POST'
@@ -718,32 +719,43 @@ async function handleApproveUSDC() {
         const data = await response.json();
 
         if (data.success) {
-            showNotification(`✅ USDC Approved!\n\nTransaction: ${data.tx_hash.slice(0, 10)}...`, 'success');
+            showNotification(`✅ USDC.e Approved!`, 'success');
 
             // Update button state
-            approveBtn.textContent = '✅ USDC Approved';
+            approveBtn.textContent = '✅ Approved';
             approveBtn.style.opacity = '0.7';
 
             // Show transaction link in console
-            console.log('✅ USDC Approval Transaction:', data.explorer_url);
+            console.log('✅ USDC.e Approval Transaction:', data.explorer_url);
 
             // Show success modal with transaction details
             showApprovalSuccessModal(data);
         } else {
-            showNotification(`❌ Approval Failed: ${data.message}`, 'error');
+            // Show detailed error
+            const errorMsg = data.error || data.message || 'Unknown error';
+            showNotification(`❌ Approval Failed: ${errorMsg}`, 'error');
             approveBtn.disabled = false;
-            approveBtn.textContent = '✅ Approve USDC';
+            approveBtn.textContent = '✅ Approve';
 
-            // Show error details if available
-            if (data.explanation) {
-                alert(`❌ Approval Failed\n\n${data.message}\n\n${data.explanation}`);
-            }
+            // Show detailed error alert
+            alert(`❌ USDC.e Approval Failed\n\n${errorMsg}\n\n` +
+                  `Common fixes:\n` +
+                  `• Make sure you have at least 0.01 POL for gas (~$0.005)\n` +
+                  `• Check that you have USDC.e (not native USDC)\n` +
+                  `• Wait a moment and try again\n\n` +
+                  `Need help? Check the browser console for details.`);
         }
     } catch (error) {
-        console.error('Error approving USDC:', error);
-        showNotification('❌ Failed to approve USDC: ' + error.message, 'error');
+        console.error('Error approving USDC.e:', error);
+        showNotification('❌ Failed to approve USDC.e: ' + error.message, 'error');
         approveBtn.disabled = false;
-        approveBtn.textContent = '✅ Approve USDC';
+        approveBtn.textContent = '✅ Approve';
+
+        alert(`❌ Network Error\n\n${error.message}\n\n` +
+              `Please check:\n` +
+              `• Your internet connection\n` +
+              `• Backend server is running\n` +
+              `• Try refreshing the page`);
     }
 }
 
