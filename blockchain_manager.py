@@ -29,7 +29,10 @@ NETWORK_CONFIG = {
     "native_token_name": "POL"  # Native token (formerly MATIC)
 }
 
-# Minimal ERC20 ABI (for balance checking and transfers)
+# Polymarket CTF Exchange address (where USDC needs to be approved)
+POLYMARKET_EXCHANGE = "0x4bFb41d5B3570DeFd03C39a9A4D8dE6Bd8B8982E"  # Polymarket CTF Exchange on Polygon
+
+# Full ERC20 ABI (for balance checking, transfers, and approvals)
 ERC20_ABI = [
     {
         "constant": True,
@@ -53,6 +56,26 @@ ERC20_ABI = [
         ],
         "name": "transfer",
         "outputs": [{"name": "", "type": "bool"}],
+        "type": "function"
+    },
+    {
+        "constant": False,
+        "inputs": [
+            {"name": "_spender", "type": "address"},
+            {"name": "_value", "type": "uint256"}
+        ],
+        "name": "approve",
+        "outputs": [{"name": "", "type": "bool"}],
+        "type": "function"
+    },
+    {
+        "constant": True,
+        "inputs": [
+            {"name": "_owner", "type": "address"},
+            {"name": "_spender", "type": "address"}
+        ],
+        "name": "allowance",
+        "outputs": [{"name": "", "type": "uint256"}],
         "type": "function"
     }
 ]
@@ -456,7 +479,163 @@ class BlockchainManager:
                 "success": False,
                 "error": str(e)
             }
-    
+
+    # ==================== USDC APPROVAL (for Polymarket Trading) ====================
+
+    def check_usdc_allowance(self, wallet_address: str, spender_address: str = None) -> Dict:
+        """
+        Check how much USDC is approved for a spender (defaults to Polymarket Exchange)
+
+        Args:
+            wallet_address: Wallet address to check
+            spender_address: Contract address to check allowance for (defaults to Polymarket Exchange)
+
+        Returns:
+            Dictionary with allowance info
+        """
+        try:
+            if not self.w3 or not self.w3.is_connected():
+                return {
+                    "success": False,
+                    "error": "Not connected to Polygon network"
+                }
+
+            if not self.usdc_contract:
+                return {
+                    "success": False,
+                    "error": "USDC contract not initialized"
+                }
+
+            # Default to Polymarket Exchange contract
+            if not spender_address:
+                spender_address = POLYMARKET_EXCHANGE
+
+            # Get allowance from USDC contract
+            allowance_raw = self.usdc_contract.functions.allowance(
+                Web3.to_checksum_address(wallet_address),
+                Web3.to_checksum_address(spender_address)
+            ).call()
+
+            # Convert to human-readable (USDC has 6 decimals)
+            allowance_usdc = allowance_raw / (10 ** 6)
+
+            print(f"[INFO] USDC Allowance for {wallet_address[:10]}... → {spender_address[:10]}...: ${float(allowance_usdc):.2f}")
+
+            return {
+                "success": True,
+                "wallet_address": wallet_address,
+                "spender_address": spender_address,
+                "allowance": float(allowance_usdc),
+                "allowance_raw": allowance_raw,
+                "is_approved": allowance_raw > 0,
+                "network": self.network_config["name"]
+            }
+
+        except Exception as e:
+            print(f"[ERROR] Error checking USDC allowance: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    def approve_usdc(self, private_key: str, amount: float = None, spender_address: str = None) -> Dict:
+        """
+        Approve USDC for Polymarket Exchange contract (required before trading)
+
+        Args:
+            private_key: Wallet private key
+            amount: Amount of USDC to approve (if None, approves unlimited)
+            spender_address: Contract to approve (defaults to Polymarket Exchange)
+
+        Returns:
+            Transaction result
+        """
+        try:
+            if not self.w3 or not self.w3.is_connected():
+                return {
+                    "success": False,
+                    "error": "Not connected to Polygon network"
+                }
+
+            if not self.usdc_contract:
+                return {
+                    "success": False,
+                    "error": "USDC contract not initialized"
+                }
+
+            # Create account from private key
+            account = Account.from_key(private_key)
+            from_address = account.address
+
+            # Default to Polymarket Exchange contract
+            if not spender_address:
+                spender_address = POLYMARKET_EXCHANGE
+
+            # Convert amount to raw value (6 decimals)
+            # If no amount specified, approve unlimited (2^256 - 1)
+            if amount is None:
+                # Unlimited approval (standard practice for DEX approvals)
+                amount_raw = 2**256 - 1
+                print(f"[INFO] Approving UNLIMITED USDC for {spender_address}")
+            else:
+                amount_raw = int(amount * (10 ** 6))
+                print(f"[INFO] Approving ${amount:.2f} USDC for {spender_address}")
+
+            # Build approval transaction
+            transaction = self.usdc_contract.functions.approve(
+                Web3.to_checksum_address(spender_address),
+                amount_raw
+            ).build_transaction({
+                'from': from_address,
+                'gas': 100000,  # Gas limit for ERC20 approval
+                'gasPrice': self.w3.eth.gas_price,
+                'nonce': self.w3.eth.get_transaction_count(from_address),
+                'chainId': self.chain_id
+            })
+
+            # Sign transaction
+            signed_txn = self.w3.eth.account.sign_transaction(transaction, private_key)
+
+            # Send transaction
+            tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+
+            print(f"[OK] ✅ USDC Approval transaction sent! Hash: {tx_hash.hex()}")
+            print(f"🔗 View on explorer: {self.network_config['explorer']}/tx/{tx_hash.hex()}")
+
+            # Wait for confirmation
+            print(f"[INFO] Waiting for transaction confirmation...")
+            receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+
+            success = receipt['status'] == 1
+
+            if success:
+                print(f"[OK] ✅ USDC approved! You can now trade on Polymarket.")
+            else:
+                print(f"[ERROR] ❌ USDC approval failed!")
+
+            return {
+                "success": success,
+                "tx_hash": tx_hash.hex(),
+                "status": receipt['status'],
+                "block_number": receipt['blockNumber'],
+                "explorer_url": f"{self.network_config['explorer']}/tx/{tx_hash.hex()}",
+                "spender": spender_address,
+                "amount_approved": amount if amount else "unlimited",
+                "network": self.network_config["name"],
+                "message": "USDC approved for Polymarket trading!" if success else "Approval failed"
+            }
+
+        except Exception as e:
+            print(f"[ERROR] Error approving USDC: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
     # ==================== UTILITIES ====================
     
     def is_valid_address(self, address: str) -> bool:
