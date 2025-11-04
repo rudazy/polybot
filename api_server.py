@@ -969,18 +969,25 @@ def check_usdc_allowance(user_id: str):
     """
     print(f"[ALLOWANCE API] Checking USDC allowance for user: {user_id}")
 
-    # Get user's wallet
-    wallet_data = db.get_wallet(user_id)
+    # Get user data
+    user_data = db.get_user(user_id=user_id)
 
-    if not wallet_data:
-        print(f"[ALLOWANCE API] ❌ No wallet found for user")
+    if not user_data:
+        print(f"[ALLOWANCE API] ❌ No user found with ID: {user_id}")
+        return {
+            "success": False,
+            "message": "User not found"
+        }
+
+    wallet_address = user_data.get('wallet_address')
+    wallet_type = user_data.get('wallet_type', 'unknown')
+
+    if not wallet_address:
+        print(f"[ALLOWANCE API] ❌ No wallet address for user")
         return {
             "success": False,
             "message": "No wallet found for this user"
         }
-
-    wallet_address = wallet_data.get('wallet_address')
-    wallet_type = wallet_data.get('wallet_type', 'unknown')
 
     print(f"[ALLOWANCE API] Wallet address: {wallet_address}")
     print(f"[ALLOWANCE API] Wallet type: {wallet_type}")
@@ -1016,18 +1023,25 @@ def approve_usdc_for_trading(user_id: str, amount: float = None):
     print(f"[APPROVE API] USDC approval requested for user: {user_id}")
     print(f"[APPROVE API] Amount: {amount if amount else 'unlimited'}")
 
-    # Get user's wallet
-    wallet_data = db.get_wallet(user_id)
+    # Get user data
+    user_data = db.get_user(user_id=user_id)
 
-    if not wallet_data:
-        print(f"[APPROVE API] ❌ No wallet found for user")
+    if not user_data:
+        print(f"[APPROVE API] ❌ No user found with ID: {user_id}")
+        return {
+            "success": False,
+            "message": "User not found"
+        }
+
+    wallet_address = user_data.get('wallet_address')
+    wallet_type = user_data.get('wallet_type', 'unknown')
+
+    if not wallet_address:
+        print(f"[APPROVE API] ❌ No wallet address for user")
         return {
             "success": False,
             "message": "No wallet found for this user"
         }
-
-    wallet_address = wallet_data.get('wallet_address')
-    wallet_type = wallet_data.get('wallet_type', 'unknown')
 
     print(f"[APPROVE API] Wallet address: {wallet_address}")
     print(f"[APPROVE API] Wallet type: {wallet_type}")
