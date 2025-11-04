@@ -1057,6 +1057,28 @@ body {
     box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4) !important;
 }
 
+/* ==================== APPROVE USDC BUTTON ==================== */
+.btn-approve-usdc {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    border: 1px solid #10b981 !important;
+    font-size: 13px !important;
+    padding: 8px 16px !important;
+    white-space: nowrap !important;
+}
+
+.btn-approve-usdc:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+    box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4) !important;
+    transform: translateY(-2px) !important;
+}
+
+.btn-approve-usdc:disabled {
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%) !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    opacity: 0.6;
+}
+
 /* ==================== NETWORK SWITCHER ==================== */
 .network-switcher {
     display: flex;
@@ -1247,13 +1269,13 @@ body {
 /* ==================== WHALE NOTIFICATIONS ==================== */
 .whale-notifications-container {
     position: fixed;
-    top: 80px;
-    right: 20px;
+    bottom: 24px;  /* Changed from top to bottom */
+    right: 24px;   /* Moved closer to edge */
     z-index: 2000;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    max-width: 400px;
+    max-width: 320px;  /* Reduced from 400px */
     pointer-events: none;
 }
 
@@ -1261,7 +1283,7 @@ body {
     background: linear-gradient(135deg, rgba(124, 58, 237, 0.95) 0%, rgba(59, 130, 246, 0.95) 100%);
     border: 2px solid var(--primary-purple);
     border-radius: 12px;
-    padding: 1rem;
+    padding: 12px 16px;  /* Reduced from 1rem */
     box-shadow: 0 10px 40px rgba(124, 58, 237, 0.5), 0 0 20px rgba(124, 58, 237, 0.3);
     animation: slideInRight 0.5s ease-out;
     pointer-events: all;
@@ -1301,16 +1323,16 @@ body {
 }
 
 .whale-icon {
-    font-size: 1.5rem;
+    font-size: 1.25rem;  /* Reduced from 1.5rem */
     animation: pulse 2s infinite;
 }
 
 .whale-badge {
     background: rgba(251, 191, 36, 0.9);
     color: var(--darker-bg);
-    padding: 0.25rem 0.75rem;
+    padding: 0.2rem 0.6rem;  /* Reduced padding */
     border-radius: 12px;
-    font-size: 0.75rem;
+    font-size: 0.7rem;  /* Reduced from 0.75rem */
     font-weight: 700;
     text-transform: uppercase;
 }
@@ -1344,15 +1366,15 @@ body {
 .whale-wallet {
     font-family: 'Courier New', monospace;
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 0.85rem;  /* Reduced from 1rem */
     color: var(--gold);
     margin-bottom: 0.25rem;
 }
 
 .whale-action {
-    font-size: 0.9rem;
+    font-size: 0.8rem;  /* Reduced from 0.9rem */
     color: white;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;  /* Reduced spacing */
 }
 
 .whale-position {
@@ -1376,15 +1398,15 @@ body {
 }
 
 .whale-amount {
-    font-size: 1.1rem;
+    font-size: 1rem;  /* Reduced from 1.1rem */
     font-weight: 700;
     color: var(--gold);
 }
 
 .whale-market {
-    font-size: 0.85rem;
+    font-size: 0.75rem;  /* Reduced from 0.85rem */
     color: rgba(255, 255, 255, 0.8);
-    margin-top: 0.5rem;
+    margin-top: 0.4rem;  /* Reduced spacing */
     font-style: italic;
 }
 
