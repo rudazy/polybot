@@ -536,7 +536,7 @@ function updateWalletDisplay(wallet) {
     }
 
     // Check USDC approval status and show/hide approve button
-    checkUSDCApprovalStatus();
+    checkUSDCApprovalStatus(wallet.wallet_type);
 }
 
 // ==================== PRIVATE KEY EXPORT ====================
@@ -646,31 +646,48 @@ function showPrivateKeyModal(privateKey) {
 
 // ==================== USDC APPROVAL (for Trading) ====================
 
-async function checkUSDCApprovalStatus() {
+async function checkUSDCApprovalStatus(walletType) {
     if (!currentUserId) return;
+
+    const approveBtn = document.getElementById('approve-usdc-btn');
+    if (!approveBtn) return;
+
+    // Only show for in-app wallets
+    if (walletType !== 'in-app') {
+        approveBtn.style.display = 'none';
+        return;
+    }
 
     try {
         const response = await fetch(`${API_URL}/wallet/usdc-allowance/${currentUserId}`);
         const data = await response.json();
 
-        const approveBtn = document.getElementById('approve-usdc-btn');
-        if (approveBtn) {
-            if (data.success && !data.is_approved) {
-                // Show button if USDC is not approved
-                approveBtn.style.display = 'block';
-                approveBtn.textContent = '✅ Approve USDC';
-            } else if (data.success && data.is_approved) {
-                // Hide button if already approved, or show "Approved" status
-                approveBtn.style.display = 'block';
-                approveBtn.textContent = '✅ USDC Approved';
-                approveBtn.disabled = true;
-                approveBtn.style.opacity = '0.7';
-            } else {
-                approveBtn.style.display = 'none';
-            }
+        if (data.success && !data.is_approved) {
+            // Show button if USDC is not approved
+            approveBtn.style.display = 'block';
+            approveBtn.textContent = '✅ Approve USDC';
+            approveBtn.disabled = false;
+            approveBtn.style.opacity = '1';
+        } else if (data.success && data.is_approved) {
+            // Show approved status
+            approveBtn.style.display = 'block';
+            approveBtn.textContent = '✅ USDC Approved';
+            approveBtn.disabled = true;
+            approveBtn.style.opacity = '0.7';
+        } else {
+            // Show button by default (assume not approved if can't check)
+            approveBtn.style.display = 'block';
+            approveBtn.textContent = '✅ Approve USDC';
+            approveBtn.disabled = false;
+            approveBtn.style.opacity = '1';
         }
     } catch (error) {
         console.error('Error checking USDC approval:', error);
+        // Show button on error (better to show than hide)
+        approveBtn.style.display = 'block';
+        approveBtn.textContent = '✅ Approve USDC';
+        approveBtn.disabled = false;
+        approveBtn.style.opacity = '1';
     }
 }
 
