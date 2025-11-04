@@ -129,11 +129,13 @@ function initEventListeners() {
     const connectMetaMaskBtn = document.getElementById('connect-metamask-btn');
     const refreshBalanceBtn = document.getElementById('refresh-balance-btn');
     const exportKeyBtn = document.getElementById('export-key-btn');
-    
+    const approveUsdcBtn = document.getElementById('approve-usdc-btn');
+
     if (createWalletBtn) createWalletBtn.addEventListener('click', handleCreateInAppWallet);
     if (connectMetaMaskBtn) connectMetaMaskBtn.addEventListener('click', handleConnectMetaMask);
     if (refreshBalanceBtn) refreshBalanceBtn.addEventListener('click', loadWalletBalance);
     if (exportKeyBtn) exportKeyBtn.addEventListener('click', handleExportPrivateKey);
+    if (approveUsdcBtn) approveUsdcBtn.addEventListener('click', handleApproveUSDC);
     
     // Bot controls
     const startBtn = document.getElementById('start-bot-btn');
@@ -503,27 +505,27 @@ async function loadWalletBalance() {
 function updateWalletDisplay(wallet) {
     const shortAddress = wallet.wallet_address.slice(0, 6) + '...' + wallet.wallet_address.slice(-4);
     document.getElementById('wallet-address').textContent = shortAddress;
-    
+
     const walletTypeBadge = document.getElementById('wallet-type-badge');
     if (walletTypeBadge) {
         walletTypeBadge.textContent = wallet.wallet_type === 'in-app' ? '🚀 In-App Wallet' : '🦊 MetaMask';
     }
-    
+
     const walletAddressDisplay = document.getElementById('wallet-address-display');
     if (walletAddressDisplay) {
         walletAddressDisplay.textContent = wallet.wallet_address;
     }
-    
+
     const usdcBalance = document.getElementById('usdc-balance');
     if (usdcBalance) {
         usdcBalance.textContent = `$${wallet.usdc_balance.toFixed(2)}`;
     }
-    
+
     const maticBalance = document.getElementById('matic-balance');
     if (maticBalance) {
         maticBalance.textContent = wallet.matic_balance.toFixed(4);
     }
-    
+
     const exportKeyBtn = document.getElementById('export-key-btn');
     if (exportKeyBtn) {
         if (wallet.wallet_type === 'in-app') {
@@ -532,6 +534,9 @@ function updateWalletDisplay(wallet) {
             exportKeyBtn.style.display = 'none';
         }
     }
+
+    // Check USDC approval status and show/hide approve button
+    checkUSDCApprovalStatus();
 }
 
 // ==================== PRIVATE KEY EXPORT ====================
@@ -632,6 +637,145 @@ function showPrivateKeyModal(privateKey) {
         modal.remove();
     });
     
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
+// ==================== USDC APPROVAL (for Trading) ====================
+
+async function checkUSDCApprovalStatus() {
+    if (!currentUserId) return;
+
+    try {
+        const response = await fetch(`${API_URL}/wallet/usdc-allowance/${currentUserId}`);
+        const data = await response.json();
+
+        const approveBtn = document.getElementById('approve-usdc-btn');
+        if (approveBtn) {
+            if (data.success && !data.is_approved) {
+                // Show button if USDC is not approved
+                approveBtn.style.display = 'block';
+                approveBtn.textContent = '✅ Approve USDC';
+            } else if (data.success && data.is_approved) {
+                // Hide button if already approved, or show "Approved" status
+                approveBtn.style.display = 'block';
+                approveBtn.textContent = '✅ USDC Approved';
+                approveBtn.disabled = true;
+                approveBtn.style.opacity = '0.7';
+            } else {
+                approveBtn.style.display = 'none';
+            }
+        }
+    } catch (error) {
+        console.error('Error checking USDC approval:', error);
+    }
+}
+
+async function handleApproveUSDC() {
+    const approveBtn = document.getElementById('approve-usdc-btn');
+
+    const confirmed = confirm(
+        "💰 Approve USDC for Trading?\n\n" +
+        "This allows Polymarket Exchange to use your USDC for trading.\n\n" +
+        "• One-time approval (never need to do this again)\n" +
+        "• Small gas fee required (~$0.01-0.05 POL)\n" +
+        "• Transaction takes 5-30 seconds\n\n" +
+        "Click OK to approve."
+    );
+
+    if (!confirmed) return;
+
+    try {
+        // Show loading state
+        approveBtn.disabled = true;
+        approveBtn.textContent = '⏳ Approving...';
+        showNotification('⏳ Approving USDC... Please wait', 'info');
+
+        const response = await fetch(`${API_URL}/wallet/approve-usdc/${currentUserId}`, {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(`✅ USDC Approved!\n\nTransaction: ${data.tx_hash.slice(0, 10)}...`, 'success');
+
+            // Update button state
+            approveBtn.textContent = '✅ USDC Approved';
+            approveBtn.style.opacity = '0.7';
+
+            // Show transaction link in console
+            console.log('✅ USDC Approval Transaction:', data.explorer_url);
+
+            // Show success modal with transaction details
+            showApprovalSuccessModal(data);
+        } else {
+            showNotification(`❌ Approval Failed: ${data.message}`, 'error');
+            approveBtn.disabled = false;
+            approveBtn.textContent = '✅ Approve USDC';
+
+            // Show error details if available
+            if (data.explanation) {
+                alert(`❌ Approval Failed\n\n${data.message}\n\n${data.explanation}`);
+            }
+        }
+    } catch (error) {
+        console.error('Error approving USDC:', error);
+        showNotification('❌ Failed to approve USDC: ' + error.message, 'error');
+        approveBtn.disabled = false;
+        approveBtn.textContent = '✅ Approve USDC';
+    }
+}
+
+function showApprovalSuccessModal(data) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+            <h2 style="color: #10b981;">✅ USDC Approved!</h2>
+            <p style="color: var(--text-secondary); margin: 1rem 0;">
+                Your USDC is now approved for trading on Polymarket. You can start trading immediately!
+            </p>
+
+            <div style="background: rgba(16, 185, 129, 0.1); padding: 1rem; border-radius: 10px; margin: 1.5rem 0; border: 1px solid #10b981;">
+                <p style="color: var(--text-primary); margin: 0.5rem 0;">
+                    <strong>Transaction Hash:</strong><br>
+                    <span style="font-family: 'Courier New', monospace; font-size: 0.85rem; word-break: break-all;">${data.tx_hash}</span>
+                </p>
+                <a href="${data.explorer_url}" target="_blank" rel="noopener noreferrer"
+                   style="color: #10b981; text-decoration: none; display: inline-block; margin-top: 0.5rem;">
+                    🔗 View on Polygonscan →
+                </a>
+            </div>
+
+            <div style="background: rgba(59, 130, 246, 0.1); padding: 1rem; border-radius: 10px; margin: 1rem 0; border: 1px solid #3b82f6;">
+                <p style="color: var(--text-primary); margin: 0.5rem 0; font-size: 0.9rem;">
+                    💡 <strong>What's Next?</strong><br>
+                    • You can now place trades on any Polymarket market<br>
+                    • You only need to approve once<br>
+                    • Future trades will work instantly
+                </p>
+            </div>
+
+            <div style="display: flex; justify-content: center; gap: 1rem; margin-top: 1.5rem;">
+                <button class="btn btn-primary" id="close-approval-modal">
+                    Got it!
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    document.getElementById('close-approval-modal').addEventListener('click', () => {
+        modal.remove();
+    });
+
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             modal.remove();
@@ -1318,14 +1462,44 @@ async function stopCopyTrading() {
 
 let whaleNotificationQueue = [];
 let lastWhaleId = 0;
+let currentWhaleNotification = null;
+let isShowingWhaleNotification = false;
 
 function showWhaleNotification(whaleData) {
+    // Add to queue instead of showing immediately
+    whaleNotificationQueue.push(whaleData);
+
+    // Process queue if not already processing
+    if (!isShowingWhaleNotification) {
+        processWhaleQueue();
+    }
+}
+
+function processWhaleQueue() {
+    // If no notifications in queue or already showing one, stop
+    if (whaleNotificationQueue.length === 0 || isShowingWhaleNotification) {
+        return;
+    }
+
+    // Get next notification from queue
+    const whaleData = whaleNotificationQueue.shift();
+    isShowingWhaleNotification = true;
+
+    // Display the notification
+    displayWhaleNotification(whaleData);
+}
+
+function displayWhaleNotification(whaleData) {
     const container = document.getElementById('whale-notifications');
-    if (!container) return;
+    if (!container) {
+        isShowingWhaleNotification = false;
+        return;
+    }
 
     const notification = document.createElement('div');
     notification.className = 'whale-notification';
     notification.dataset.whaleId = whaleData.id;
+    currentWhaleNotification = notification;
 
     const shortWallet = whaleData.wallet.slice(0, 6) + '...' + whaleData.wallet.slice(-4);
     const positionClass = whaleData.position.toLowerCase();
@@ -1377,18 +1551,12 @@ function showWhaleNotification(whaleData) {
         handleWhaleShareClick(whale);
     });
 
-    // Auto-dismiss after 15 seconds (increased from 10 to give time to interact)
+    // Auto-dismiss after 8 seconds (reduced for faster queue processing)
     setTimeout(() => {
         dismissWhaleNotification(notification);
-    }, 15000);
+    }, 8000);
 
     container.appendChild(notification);
-
-    // Limit to 3 notifications max
-    const notifications = container.querySelectorAll('.whale-notification');
-    if (notifications.length > 3) {
-        dismissWhaleNotification(notifications[0]);
-    }
 }
 
 function handleWhaleTradeClick(whaleData) {
@@ -1445,6 +1613,13 @@ function dismissWhaleNotification(notification) {
     notification.classList.add('dismissing');
     setTimeout(() => {
         notification.remove();
+        currentWhaleNotification = null;
+        isShowingWhaleNotification = false;
+
+        // Process next notification in queue
+        setTimeout(() => {
+            processWhaleQueue();
+        }, 500); // Small delay between notifications
     }, 500);
 }
 
