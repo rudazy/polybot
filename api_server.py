@@ -959,6 +959,126 @@ def export_private_key(user_id: str, key_export: PrivateKeyExport):
         }
 
 
+# ==================== USDC APPROVAL (for Trading) ====================
+
+@app.get("/wallet/usdc-allowance/{user_id}")
+def check_usdc_allowance(user_id: str):
+    """
+    Check how much USDC is approved for Polymarket Exchange
+    Required before trading - if allowance is 0, user needs to approve first
+    """
+    print(f"[ALLOWANCE API] Checking USDC allowance for user: {user_id}")
+
+    # Get user's wallet
+    wallet_data = db.get_wallet(user_id)
+
+    if not wallet_data:
+        print(f"[ALLOWANCE API] ❌ No wallet found for user")
+        return {
+            "success": False,
+            "message": "No wallet found for this user"
+        }
+
+    wallet_address = wallet_data.get('wallet_address')
+    wallet_type = wallet_data.get('wallet_type', 'unknown')
+
+    print(f"[ALLOWANCE API] Wallet address: {wallet_address}")
+    print(f"[ALLOWANCE API] Wallet type: {wallet_type}")
+
+    # Check allowance on blockchain
+    result = blockchain.check_usdc_allowance(wallet_address)
+
+    if result.get('success'):
+        print(f"[ALLOWANCE API] ✅ Allowance: ${result.get('allowance', 0):.2f}")
+        return {
+            "success": True,
+            "wallet_address": wallet_address,
+            "allowance": result.get('allowance', 0),
+            "is_approved": result.get('is_approved', False),
+            "spender": result.get('spender_address'),
+            "message": "Approved for trading" if result.get('is_approved') else "Not approved - approval required before trading"
+        }
+    else:
+        print(f"[ALLOWANCE API] ❌ Failed to check allowance: {result.get('error')}")
+        return {
+            "success": False,
+            "message": "Failed to check USDC allowance",
+            "error": result.get('error')
+        }
+
+
+@app.post("/wallet/approve-usdc/{user_id}")
+def approve_usdc_for_trading(user_id: str, amount: float = None):
+    """
+    Approve USDC for Polymarket Exchange (required before first trade)
+    If amount is not specified, approves unlimited USDC (standard practice)
+    """
+    print(f"[APPROVE API] USDC approval requested for user: {user_id}")
+    print(f"[APPROVE API] Amount: {amount if amount else 'unlimited'}")
+
+    # Get user's wallet
+    wallet_data = db.get_wallet(user_id)
+
+    if not wallet_data:
+        print(f"[APPROVE API] ❌ No wallet found for user")
+        return {
+            "success": False,
+            "message": "No wallet found for this user"
+        }
+
+    wallet_address = wallet_data.get('wallet_address')
+    wallet_type = wallet_data.get('wallet_type', 'unknown')
+
+    print(f"[APPROVE API] Wallet address: {wallet_address}")
+    print(f"[APPROVE API] Wallet type: {wallet_type}")
+
+    # Can only approve for in-app wallets (need private key)
+    if wallet_type != 'in-app':
+        print(f"[APPROVE API] ❌ External wallet - approval must be done via wallet app")
+        return {
+            "success": False,
+            "message": "External wallet detected",
+            "wallet_type": wallet_type,
+            "explanation": "For external wallets (Rabby, MetaMask), you need to approve USDC through your wallet app when you make your first trade. The approval popup will appear automatically."
+        }
+
+    # Get private key for in-app wallet
+    private_key = wallet_manager.export_private_key(user_id)
+
+    if not private_key:
+        print(f"[APPROVE API] ❌ Could not retrieve private key")
+        return {
+            "success": False,
+            "message": "Could not retrieve wallet private key"
+        }
+
+    # Execute approval on blockchain
+    print(f"[APPROVE API] Executing USDC approval transaction...")
+    result = blockchain.approve_usdc(private_key, amount)
+
+    if result.get('success'):
+        print(f"[APPROVE API] ✅ USDC approved successfully!")
+        print(f"[APPROVE API] Transaction: {result.get('tx_hash')}")
+
+        return {
+            "success": True,
+            "message": "USDC approved for Polymarket trading!",
+            "tx_hash": result.get('tx_hash'),
+            "explorer_url": result.get('explorer_url'),
+            "amount_approved": result.get('amount_approved'),
+            "wallet_address": wallet_address,
+            "next_step": "You can now place trades on Polymarket!"
+        }
+    else:
+        print(f"[APPROVE API] ❌ Approval failed: {result.get('error')}")
+        return {
+            "success": False,
+            "message": "USDC approval failed",
+            "error": result.get('error'),
+            "explanation": "Make sure you have enough POL for gas fees (~$0.01-0.05)"
+        }
+
+
 # ==================== TOP TRADERS ====================
 
 @app.get("/traders/top")
