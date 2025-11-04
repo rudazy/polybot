@@ -1061,9 +1061,10 @@ body {
 .btn-approve-usdc {
     background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
     border: 1px solid #10b981 !important;
-    font-size: 13px !important;
-    padding: 8px 16px !important;
+    font-size: 11px !important;
+    padding: 6px 12px !important;
     white-space: nowrap !important;
+    font-weight: 600 !important;
 }
 
 .btn-approve-usdc:hover {

@@ -22,14 +22,14 @@ NETWORK_CONFIG = {
         "https://rpc.ankr.com/polygon"
     ],
     "chain_id": 137,
-    "usdc_address": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",  # USDC on Polygon
+    "usdc_address": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",  # USDC.e (Bridged USDC) - Used by Polymarket!
     "pol_token_address": "0x0000000000000000000000000000000000001010",  # POL/MATIC contract
     "explorer": "https://polygonscan.com",
     "currency_symbol": "POL",  # UPDATED: MATIC → POL rebrand
     "native_token_name": "POL"  # Native token (formerly MATIC)
 }
 
-# Polymarket CTF Exchange address (where USDC needs to be approved)
+# Polymarket CTF Exchange address (where USDC.e needs to be approved)
 POLYMARKET_EXCHANGE = "0x4bFb41d5B3570DeFd03C39a9A4D8dE6Bd8B8982E"  # Polymarket CTF Exchange on Polygon
 
 # Full ERC20 ABI (for balance checking, transfers, and approvals)
@@ -542,7 +542,7 @@ class BlockchainManager:
 
     def approve_usdc(self, private_key: str, amount: float = None, spender_address: str = None) -> Dict:
         """
-        Approve USDC for Polymarket Exchange contract (required before trading)
+        Approve USDC.e for Polymarket Exchange contract (required before trading)
 
         Args:
             private_key: Wallet private key
@@ -553,6 +553,8 @@ class BlockchainManager:
             Transaction result
         """
         try:
+            print(f"[APPROVE] Starting USDC.e approval process...")
+
             if not self.w3 or not self.w3.is_connected():
                 return {
                     "success": False,
@@ -568,20 +570,32 @@ class BlockchainManager:
             # Create account from private key
             account = Account.from_key(private_key)
             from_address = account.address
+            print(f"[APPROVE] Wallet address: {from_address}")
+
+            # Check POL balance for gas
+            pol_balance = self.get_matic_balance(from_address)
+            if pol_balance < 0.01:
+                print(f"[ERROR] Insufficient POL for gas. Balance: {pol_balance} POL")
+                return {
+                    "success": False,
+                    "error": f"Insufficient POL for gas fees. You have {pol_balance:.6f} POL, need at least 0.01 POL (~$0.005)"
+                }
 
             # Default to Polymarket Exchange contract
             if not spender_address:
                 spender_address = POLYMARKET_EXCHANGE
+
+            print(f"[APPROVE] Spender (Polymarket Exchange): {spender_address}")
 
             # Convert amount to raw value (6 decimals)
             # If no amount specified, approve unlimited (2^256 - 1)
             if amount is None:
                 # Unlimited approval (standard practice for DEX approvals)
                 amount_raw = 2**256 - 1
-                print(f"[INFO] Approving UNLIMITED USDC for {spender_address}")
+                print(f"[APPROVE] Approving UNLIMITED USDC.e for Polymarket")
             else:
                 amount_raw = int(amount * (10 ** 6))
-                print(f"[INFO] Approving ${amount:.2f} USDC for {spender_address}")
+                print(f"[APPROVE] Approving ${amount:.2f} USDC.e for Polymarket")
 
             # Build approval transaction
             transaction = self.usdc_contract.functions.approve(
@@ -601,19 +615,19 @@ class BlockchainManager:
             # Send transaction
             tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
 
-            print(f"[OK] ✅ USDC Approval transaction sent! Hash: {tx_hash.hex()}")
+            print(f"[OK] ✅ USDC.e Approval transaction sent! Hash: {tx_hash.hex()}")
             print(f"🔗 View on explorer: {self.network_config['explorer']}/tx/{tx_hash.hex()}")
 
             # Wait for confirmation
-            print(f"[INFO] Waiting for transaction confirmation...")
+            print(f"[APPROVE] Waiting for transaction confirmation (up to 2 minutes)...")
             receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
 
             success = receipt['status'] == 1
 
             if success:
-                print(f"[OK] ✅ USDC approved! You can now trade on Polymarket.")
+                print(f"[OK] ✅ USDC.e approved! You can now trade on Polymarket.")
             else:
-                print(f"[ERROR] ❌ USDC approval failed!")
+                print(f"[ERROR] ❌ USDC.e approval failed! Status: {receipt['status']}")
 
             return {
                 "success": success,
@@ -624,7 +638,7 @@ class BlockchainManager:
                 "spender": spender_address,
                 "amount_approved": amount if amount else "unlimited",
                 "network": self.network_config["name"],
-                "message": "USDC approved for Polymarket trading!" if success else "Approval failed"
+                "message": "USDC.e approved for Polymarket trading!" if success else "Approval failed"
             }
 
         except Exception as e:
