@@ -265,7 +265,7 @@ async function handleLogin() {
             currentUser = data.user;
             currentUserId = data.user.id;
             localStorage.setItem('polybot_user', JSON.stringify(data.user));
-            showNotification('✅ Login successful!', 'success');
+            showNotification('Login successful!', 'success');
 
             // Hide landing page and show dashboard
             hideLandingPage();
@@ -273,11 +273,11 @@ async function handleLogin() {
 
             checkWalletAndProceed();
         } else {
-            showNotification('❌ Login failed. ' + (data.message || 'Invalid credentials.'), 'error');
+            showNotification('Login failed. ' + (data.message || 'Invalid credentials.'), 'error');
         }
     } catch (error) {
         console.error('Login error:', error);
-        showNotification('❌ Login failed. Please check API server.', 'error');
+        showNotification('Login failed. Please check API server.', 'error');
     }
 }
 
@@ -322,7 +322,7 @@ async function handleRegister() {
             currentUser = data.user;
             currentUserId = data.user.id;
             localStorage.setItem('polybot_user', JSON.stringify(data.user));
-            showNotification('🎉 Account created! Completely FREE forever!', 'success');
+            showNotification('Account created successfully!', 'success');
 
             // Hide landing page and show dashboard
             hideLandingPage();
@@ -330,11 +330,11 @@ async function handleRegister() {
 
             checkWalletAndProceed();
         } else {
-            showNotification('❌ Registration failed. ' + (data.message || 'Email may already exist.'), 'error');
+            showNotification('Registration failed. ' + (data.message || 'Email may already exist.'), 'error');
         }
     } catch (error) {
         console.error('Registration error:', error);
-        showNotification('❌ Registration failed. Please check API server.', 'error');
+        showNotification('Registration failed. Please check API server.', 'error');
     }
 }
 
@@ -394,7 +394,7 @@ async function handlePasswordReset() {
         const data = await response.json();
 
         if (data.success) {
-            showNotification('✅ Password reset successful! Please login.', 'success');
+            showNotification('Password reset successful! Please login.', 'success');
             // Clear the form
             document.getElementById('reset-email').value = '';
             document.getElementById('reset-new-password').value = '';
@@ -402,11 +402,11 @@ async function handlePasswordReset() {
             // Go back to login
             hideForgotPasswordModal();
         } else {
-            showNotification('❌ ' + (data.message || 'Password reset failed'), 'error');
+            showNotification('' + (data.message || 'Password reset failed'), 'error');
         }
     } catch (error) {
         console.error('Password reset error:', error);
-        showNotification('❌ Password reset failed. Please check API server.', 'error');
+        showNotification('Password reset failed. Please check API server.', 'error');
     }
 }
 
@@ -434,7 +434,7 @@ async function handleCreateInAppWallet() {
     try {
         // If no user is logged in, create a guest account first
         if (!currentUserId) {
-            showNotification('🔐 Creating guest account...', 'info');
+            showNotification('Creating guest account...', 'info');
             const guestEmail = `guest_${Date.now()}@polybot.finance`;
             const guestPassword = `guest_${Math.random().toString(36).slice(2)}`;
 
@@ -454,14 +454,14 @@ async function handleCreateInAppWallet() {
                 currentUser = { id: currentUserId, email: guestEmail };
                 localStorage.setItem('polybot_user', JSON.stringify(currentUser));
             } else {
-                showNotification('❌ Failed to create guest account', 'error');
+                showNotification('Failed to create guest account', 'error');
                 return;
             }
         }
 
-        showNotification('🔐 Creating your Safe Wallet with FREE GAS...', 'info');
+        showNotification('Creating your wallet...', 'info');
 
-        // TRY SAFE WALLET FIRST (GASLESS!)
+        // Try Safe Wallet first (gasless behind the scenes)
         let response = await fetch(`${API_URL}/wallet/create-safe/${currentUserId}`, {
             method: 'POST'
         });
@@ -471,7 +471,7 @@ async function handleCreateInAppWallet() {
         // Fallback to regular EOA wallet if Safe creation fails
         if (!data.success) {
             console.warn('[WALLET] Safe Wallet creation failed, falling back to EOA...');
-            showNotification('⚠️ Safe Wallet failed, creating regular wallet...', 'info');
+            showNotification('Creating wallet...', 'info');
 
             response = await fetch(`${API_URL}/wallet/create-inapp/${currentUserId}`, {
                 method: 'POST'
@@ -481,30 +481,22 @@ async function handleCreateInAppWallet() {
         }
 
         if (data.success) {
-            const walletType = data.wallet?.wallet_type || 'unknown';
-            const gasless = data.wallet?.gasless || false;
-
-            if (walletType === 'safe' && gasless) {
-                showNotification('✅ Safe Wallet created with FREE GAS! ⛽', 'success');
-            } else {
-                showNotification('✅ Wallet created successfully!', 'success');
-            }
-
+            showNotification('Wallet created successfully!', 'success');
             hasWallet = true;
             showDashboard();
             loadWalletBalance();
         } else {
-            showNotification('❌ Failed to create wallet', 'error');
+            showNotification('Failed to create wallet', 'error');
         }
     } catch (error) {
         console.error('Error creating wallet:', error);
-        showNotification('❌ Failed to create wallet: ' + error.message, 'error');
+        showNotification('Failed to create wallet: ' + error.message, 'error');
     }
 }
 
 async function handleConnectMetaMask() {
     if (typeof window.ethereum === 'undefined') {
-        showNotification('❌ MetaMask is not installed. Please install it first.', 'error');
+        showNotification('MetaMask is not installed. Please install it first.', 'error');
         window.open('https://metamask.io/download/', '_blank');
         return;
     }
@@ -517,7 +509,7 @@ async function handleConnectMetaMask() {
 
         // If no user is logged in, create a guest account first
         if (!currentUserId) {
-            showNotification('🔐 Creating guest account...', 'info');
+            showNotification('Creating guest account...', 'info');
             const guestEmail = `guest_${Date.now()}@polybot.finance`;
             const guestPassword = `guest_${Math.random().toString(36).slice(2)}`;
 
@@ -537,7 +529,7 @@ async function handleConnectMetaMask() {
                 currentUser = { id: currentUserId, email: guestEmail };
                 localStorage.setItem('polybot_user', JSON.stringify(currentUser));
             } else {
-                showNotification('❌ Failed to create guest account', 'error');
+                showNotification('Failed to create guest account', 'error');
                 return;
             }
         }
@@ -551,16 +543,16 @@ async function handleConnectMetaMask() {
         const data = await response.json();
 
         if (data.success) {
-            showNotification('✅ MetaMask connected successfully!', 'success');
+            showNotification('MetaMask connected successfully!', 'success');
             hasWallet = true;
             showDashboard();
             loadWalletBalance();
         } else {
-            showNotification('❌ Failed to connect wallet', 'error');
+            showNotification('Failed to connect wallet', 'error');
         }
     } catch (error) {
         console.error('Error connecting MetaMask:', error);
-        showNotification('❌ Failed to connect MetaMask: ' + error.message, 'error');
+        showNotification('Failed to connect MetaMask: ' + error.message, 'error');
     }
 }
 
@@ -585,18 +577,15 @@ function updateWalletDisplay(wallet) {
 
     const walletTypeBadge = document.getElementById('wallet-type-badge');
     if (walletTypeBadge) {
-        // Display wallet type with FREE GAS badge for Safe wallets
-        if (wallet.wallet_type === 'safe') {
-            walletTypeBadge.textContent = '⛽ Safe Wallet (FREE GAS)';
-            walletTypeBadge.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-        } else if (wallet.wallet_type === 'in-app') {
-            walletTypeBadge.textContent = '🚀 In-App Wallet';
+        // Display simple wallet type without technical jargon
+        if (wallet.wallet_type === 'safe' || wallet.wallet_type === 'in-app') {
+            walletTypeBadge.textContent = 'Your Wallet';
             walletTypeBadge.style.background = '';
         } else if (wallet.wallet_type === 'external' || wallet.wallet_type === 'metamask') {
-            walletTypeBadge.textContent = '🦊 MetaMask';
+            walletTypeBadge.textContent = 'Connected Wallet';
             walletTypeBadge.style.background = '';
         } else {
-            walletTypeBadge.textContent = '💼 Wallet';
+            walletTypeBadge.textContent = 'Wallet';
             walletTypeBadge.style.background = '';
         }
     }
@@ -636,7 +625,7 @@ async function copyWalletAddress() {
     try {
         const walletAddressElement = document.getElementById('wallet-address-display');
         if (!walletAddressElement) {
-            showNotification('❌ Wallet address not found', 'error');
+            showNotification('Wallet address not found', 'error');
             return;
         }
 
@@ -645,13 +634,13 @@ async function copyWalletAddress() {
         // Copy to clipboard
         if (navigator.clipboard && navigator.clipboard.writeText) {
             await navigator.clipboard.writeText(address);
-            showNotification('✅ Wallet address copied!', 'success');
+            showNotification('Wallet address copied!', 'success');
 
             // Visual feedback - change button text briefly
             const copyBtn = document.getElementById('copy-address-btn');
             if (copyBtn) {
                 const originalText = copyBtn.textContent;
-                copyBtn.textContent = '✅ Copied!';
+                copyBtn.textContent = 'Copied!';
                 copyBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
 
                 setTimeout(() => {
@@ -669,11 +658,11 @@ async function copyWalletAddress() {
             textarea.select();
             document.execCommand('copy');
             document.body.removeChild(textarea);
-            showNotification('✅ Wallet address copied!', 'success');
+            showNotification('Wallet address copied!', 'success');
         }
     } catch (error) {
         console.error('Error copying address:', error);
-        showNotification('❌ Failed to copy address', 'error');
+        showNotification('Failed to copy address', 'error');
     }
 }
 
@@ -703,7 +692,7 @@ async function handleExportPrivateKey() {
     const password = prompt("Enter your password to verify:");
 
     if (!password) {
-        showNotification('❌ Password required to export private key', 'error');
+        showNotification('Password required to export private key', 'error');
         return;
     }
 
@@ -719,11 +708,11 @@ async function handleExportPrivateKey() {
         if (data.success) {
             showPrivateKeyModal(data.private_key);
         } else {
-            showNotification('❌ ' + (data.message || 'Cannot export private key'), 'error');
+            showNotification('' + (data.message || 'Cannot export private key'), 'error');
         }
     } catch (error) {
         console.error('Error exporting private key:', error);
-        showNotification('❌ Failed to export private key', 'error');
+        showNotification('Failed to export private key', 'error');
     }
 }
 
@@ -768,7 +757,7 @@ function showPrivateKeyModal(privateKey) {
     
     document.getElementById('copy-key-btn').addEventListener('click', () => {
         navigator.clipboard.writeText(privateKey);
-        showNotification('✅ Private key copied to clipboard!', 'success');
+        showNotification('Private key copied to clipboard!', 'success');
     });
     
     document.getElementById('close-key-modal').addEventListener('click', () => {
@@ -885,7 +874,7 @@ async function handleApproveUSDC() {
         }
     } catch (error) {
         console.error('Error approving USDC.e:', error);
-        showNotification('❌ Failed to approve USDC.e: ' + error.message, 'error');
+        showNotification('Failed to approve USDC.e: ' + error.message, 'error');
         approveBtn.disabled = false;
         approveBtn.textContent = '✅ Approve';
 
@@ -1214,13 +1203,13 @@ async function startBot() {
             `;
             document.getElementById('start-bot-btn').style.display = 'none';
             document.getElementById('stop-bot-btn').style.display = 'block';
-            showNotification('✅ Bot started successfully!', 'success');
+            showNotification('Bot started successfully!', 'success');
         } else {
-            showNotification('❌ ' + data.message, 'error');
+            showNotification('' + data.message, 'error');
         }
     } catch (error) {
         console.error('Error starting bot:', error);
-        showNotification('❌ Failed to start bot', 'error');
+        showNotification('Failed to start bot', 'error');
     }
 }
 
@@ -1283,7 +1272,7 @@ async function saveSettings() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(settings)
         });
-        showNotification('✅ Settings saved with stop loss and take profit', 'success');
+        showNotification('Settings saved with stop loss and take profit', 'success');
     } catch (error) {
         console.error('Error saving settings:', error);
     }
@@ -1297,7 +1286,7 @@ async function executeManualTrade() {
     const position = document.getElementById('manual-position').value;
     
     if (!market || !amount) {
-        showNotification('❌ Please fill in all fields', 'error');
+        showNotification('Please fill in all fields', 'error');
         return;
     }
     
@@ -1322,11 +1311,11 @@ async function executeManualTrade() {
             loadActivity();
             loadPoints();
         } else {
-            showNotification('❌ Trade failed', 'error');
+            showNotification('Trade failed', 'error');
         }
     } catch (error) {
         console.error('Error executing trade:', error);
-        showNotification('❌ Trade failed', 'error');
+        showNotification('Trade failed', 'error');
     }
 }
 
@@ -1350,11 +1339,11 @@ async function redeemPoints(points, reward) {
             showNotification(`🎉 Successfully redeemed ${reward}!`, 'success');
             loadPoints();
         } else {
-            showNotification('❌ Insufficient points', 'error');
+            showNotification('Insufficient points', 'error');
         }
     } catch (error) {
         console.error('Error redeeming points:', error);
-        showNotification('❌ Redemption failed', 'error');
+        showNotification('Redemption failed', 'error');
     }
 }
 
@@ -1443,11 +1432,11 @@ async function handleNetworkSwitch() {
             showNotification(`✅ Switched to ${newNetwork === 'mainnet' ? 'MAINNET' : 'TESTNET'}!`, 'success');
             loadWalletBalance(); // Refresh balances for new network
         } else {
-            showNotification('❌ Failed to switch network', 'error');
+            showNotification('Failed to switch network', 'error');
         }
     } catch (error) {
         console.error('Error switching network:', error);
-        showNotification('❌ Failed to switch network', 'error');
+        showNotification('Failed to switch network', 'error');
     }
 }
 
@@ -1554,19 +1543,19 @@ async function startCopyTrading() {
     if (manualWallet) {
         // Validate wallet address format
         if (!manualWallet.startsWith('0x') || manualWallet.length !== 42) {
-            showNotification('❌ Invalid wallet address format. Must be 42 characters starting with 0x', 'error');
+            showNotification('Invalid wallet address format. Must be 42 characters starting with 0x', 'error');
             return;
         }
         targetWallet = manualWallet;
     } else if (selectedTrader) {
         targetWallet = selectedTrader;
     } else {
-        showNotification('❌ Please enter a wallet address or select a trader to copy', 'error');
+        showNotification('Please enter a wallet address or select a trader to copy', 'error');
         return;
     }
 
     if (!copyAmount || copyAmount <= 0) {
-        showNotification('❌ Please enter a valid copy amount', 'error');
+        showNotification('Please enter a valid copy amount', 'error');
         return;
     }
 
@@ -1594,13 +1583,13 @@ async function startCopyTrading() {
             `;
             document.getElementById('start-copy-btn').style.display = 'none';
             document.getElementById('stop-copy-btn').style.display = 'block';
-            showNotification('✅ Copy trading started!', 'success');
+            showNotification('Copy trading started!', 'success');
         } else {
-            showNotification('❌ ' + data.message, 'error');
+            showNotification('' + data.message, 'error');
         }
     } catch (error) {
         console.error('Error starting copy trading:', error);
-        showNotification('❌ Failed to start copy trading', 'error');
+        showNotification('Failed to start copy trading', 'error');
     }
 }
 
@@ -1621,7 +1610,7 @@ async function stopCopyTrading() {
         }
     } catch (error) {
         console.error('Error stopping copy trading:', error);
-        showNotification('❌ Failed to stop copy trading', 'error');
+        showNotification('Failed to stop copy trading', 'error');
     }
 }
 

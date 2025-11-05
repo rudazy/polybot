@@ -18,24 +18,24 @@
     --gradient-orange: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
 }
 
-/* ==================== DARK THEME (IMPROVED CONTRAST) ==================== */
+/* ==================== DARK THEME ==================== */
 [data-theme="dark"] {
-    --primary-blue: #00D4AA;
-    --primary-light-blue: #00E5BD;
-    --light-bg: #1A1A1A;
-    --lighter-bg: #2D2D2D;
-    --card-bg: #2D2D2D;
-    --border-color: #404040;
-    --text-primary: #FFFFFF;
-    --text-secondary: #B0B0B0;
-    --success-green: #00D4AA;
-    --danger-red: #FF5555;
-    --warning-orange: #FFB347;
-    --gold: #FFD700;
-    --gradient-blue: linear-gradient(135deg, #00D4AA 0%, #00E5BD 100%);
-    --gradient-light-blue: linear-gradient(135deg, #00E5BD 0%, #00F5CF 100%);
-    --gradient-green: linear-gradient(135deg, #00D4AA 0%, #00E5BD 100%);
-    --gradient-orange: linear-gradient(135deg, #FFB347 0%, #FFD700 100%);
+    --primary-blue: #3b82f6;
+    --primary-light-blue: #60a5fa;
+    --light-bg: #0f1419;
+    --lighter-bg: #1a1f2e;
+    --card-bg: #1a1f2e;
+    --border-color: #2d3748;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --success-green: #10b981;
+    --danger-red: #ef4444;
+    --warning-orange: #f59e0b;
+    --gold: #fbbf24;
+    --gradient-blue: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+    --gradient-light-blue: linear-gradient(135deg, #60a5fa 0%, #93c5fd 100%);
+    --gradient-green: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+    --gradient-orange: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
 }
 
 /* ==================== GLOBAL STYLES ==================== */
@@ -1543,7 +1543,7 @@ body {
 /* ==================== LANDING PAGE ==================== */
 #landing-page {
     min-height: 100vh;
-    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+    background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
 }
 
 .hero-section {
@@ -1551,7 +1551,7 @@ body {
     display: flex;
     align-items: center;
     padding: 4rem 2rem;
-    background: linear-gradient(135deg, rgba(0, 212, 170, 0.1) 0%, rgba(0, 229, 189, 0.05) 100%);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(37, 99, 235, 0.02) 100%);
 }
 
 .hero-container {
@@ -1564,7 +1564,7 @@ body {
 }
 
 .hero-content {
-    color: #FFFFFF;
+    color: #1e293b;
 }
 
 .hero-title {
@@ -1575,7 +1575,7 @@ body {
 }
 
 .gradient-text {
-    background: linear-gradient(135deg, #00D4AA 0%, #00E5BD 100%);
+    background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -1583,7 +1583,7 @@ body {
 
 .hero-subtitle {
     font-size: 1.25rem;
-    color: #B0B0B0;
+    color: #64748b;
     margin-bottom: 2.5rem;
     line-height: 1.6;
 }
@@ -1596,28 +1596,28 @@ body {
 
 .btn-hero-primary {
     padding: 1.25rem 3rem;
-    background: linear-gradient(135deg, #00D4AA 0%, #00E5BD 100%);
+    background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
     border: none;
     border-radius: 12px;
-    color: #1A1A1A;
+    color: #ffffff;
     font-size: 1.125rem;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 10px 30px rgba(0, 212, 170, 0.3);
+    box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
 }
 
 .btn-hero-primary:hover {
     transform: translateY(-3px);
-    box-shadow: 0 15px 40px rgba(0, 212, 170, 0.5);
+    box-shadow: 0 15px 40px rgba(59, 130, 246, 0.5);
 }
 
 .btn-hero-secondary {
     padding: 1.25rem 3rem;
     background: transparent;
-    border: 2px solid #00D4AA;
+    border: 2px solid #3b82f6;
     border-radius: 12px;
-    color: #00D4AA;
+    color: #3b82f6;
     font-size: 1.125rem;
     font-weight: 700;
     cursor: pointer;
@@ -1625,7 +1625,7 @@ body {
 }
 
 .btn-hero-secondary:hover {
-    background: rgba(0, 212, 170, 0.1);
+    background: rgba(59, 130, 246, 0.1);
     transform: translateY(-3px);
 }
 
@@ -1641,13 +1641,13 @@ body {
 .stat-number {
     font-size: 2.5rem;
     font-weight: 900;
-    color: #00D4AA;
+    color: #3b82f6;
     margin-bottom: 0.5rem;
 }
 
 .stat-label {
     font-size: 0.9rem;
-    color: #B0B0B0;
+    color: #64748b;
     text-transform: uppercase;
     letter-spacing: 1px;
 }
@@ -1659,11 +1659,11 @@ body {
 }
 
 .hero-card {
-    background: linear-gradient(135deg, #2D2D2D 0%, #1A1A1A 100%);
-    border: 2px solid #00D4AA;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 2px solid #3b82f6;
     border-radius: 20px;
     padding: 2.5rem;
-    box-shadow: 0 20px 60px rgba(0, 212, 170, 0.3);
+    box-shadow: 0 20px 60px rgba(59, 130, 246, 0.2);
     animation: float 3s ease-in-out infinite;
 }
 
@@ -1675,7 +1675,7 @@ body {
 .hero-card-header {
     font-size: 1.5rem;
     font-weight: 800;
-    color: #00D4AA;
+    color: #3b82f6;
     margin-bottom: 1.5rem;
     text-align: center;
 }
@@ -1688,17 +1688,17 @@ body {
 
 .feature-check {
     font-size: 1.125rem;
-    color: #FFFFFF;
+    color: #1e293b;
     padding: 0.75rem;
-    background: rgba(0, 212, 170, 0.1);
+    background: rgba(59, 130, 246, 0.1);
     border-radius: 10px;
-    border-left: 3px solid #00D4AA;
+    border-left: 3px solid #3b82f6;
 }
 
 /* Features Section */
 .features-section {
     padding: 6rem 2rem;
-    background: #1A1A1A;
+    background: #f8fafc;
 }
 
 .features-container {
@@ -1710,7 +1710,7 @@ body {
     font-size: 3rem;
     font-weight: 900;
     text-align: center;
-    color: #FFFFFF;
+    color: #1e293b;
     margin-bottom: 4rem;
 }
 
@@ -1721,8 +1721,8 @@ body {
 }
 
 .feature-card {
-    background: #2D2D2D;
-    border: 1px solid #404040;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 20px;
     padding: 2.5rem;
     transition: all 0.3s ease;
@@ -1730,8 +1730,8 @@ body {
 
 .feature-card:hover {
     transform: translateY(-10px);
-    border-color: #00D4AA;
-    box-shadow: 0 20px 40px rgba(0, 212, 170, 0.2);
+    border-color: #3b82f6;
+    box-shadow: 0 20px 40px rgba(59, 130, 246, 0.2);
 }
 
 .feature-icon {
@@ -1742,20 +1742,20 @@ body {
 .feature-card h3 {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #FFFFFF;
+    color: #1e293b;
     margin-bottom: 1rem;
 }
 
 .feature-card p {
     font-size: 1rem;
-    color: #B0B0B0;
+    color: #64748b;
     line-height: 1.6;
 }
 
 /* CTA Section */
 .cta-section {
     padding: 6rem 2rem;
-    background: linear-gradient(135deg, rgba(0, 212, 170, 0.1) 0%, rgba(0, 229, 189, 0.05) 100%);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%);
 }
 
 .cta-container {
@@ -1767,32 +1767,32 @@ body {
 .cta-container h2 {
     font-size: 2.5rem;
     font-weight: 900;
-    color: #FFFFFF;
+    color: #1e293b;
     margin-bottom: 1rem;
 }
 
 .cta-container p {
     font-size: 1.25rem;
-    color: #B0B0B0;
+    color: #64748b;
     margin-bottom: 2.5rem;
 }
 
 .btn-cta {
     padding: 1.5rem 4rem;
-    background: linear-gradient(135deg, #00D4AA 0%, #00E5BD 100%);
+    background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
     border: none;
     border-radius: 12px;
-    color: #1A1A1A;
+    color: #ffffff;
     font-size: 1.25rem;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 10px 30px rgba(0, 212, 170, 0.3);
+    box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
 }
 
 .btn-cta:hover {
     transform: translateY(-3px);
-    box-shadow: 0 15px 40px rgba(0, 212, 170, 0.5);
+    box-shadow: 0 15px 40px rgba(59, 130, 246, 0.5);
 }
 
 /* Responsive */
@@ -1821,8 +1821,8 @@ body {
 
 /* ==================== WALLET DISPLAY IMPROVEMENTS ==================== */
 .wallet-info-banner {
-    background: linear-gradient(135deg, rgba(0, 212, 170, 0.1) 0%, rgba(0, 229, 189, 0.05) 100%);
-    border: 2px solid #00D4AA;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%);
+    border: 2px solid #3b82f6;
     border-radius: 15px;
     padding: 2rem;
     margin-bottom: 2rem;
@@ -1850,7 +1850,7 @@ body {
 
 .wallet-address-label {
     font-size: 0.85rem;
-    color: #B0B0B0;
+    color: #64748b;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -1865,20 +1865,20 @@ body {
 .wallet-address-full {
     font-family: 'Courier New', monospace;
     font-size: 1rem;
-    color: #FFFFFF;
+    color: #1e293b;
     font-weight: 600;
-    background: rgba(0, 0, 0, 0.3);
+    background: #f8fafc;
     padding: 0.75rem 1rem;
     border-radius: 8px;
-    border: 1px solid #404040;
+    border: 1px solid #e2e8f0;
 }
 
 .btn-copy-address {
     padding: 0.75rem 1.5rem;
-    background: linear-gradient(135deg, #00D4AA 0%, #00E5BD 100%);
+    background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
     border: none;
     border-radius: 8px;
-    color: #1A1A1A;
+    color: #ffffff;
     font-weight: 700;
     font-size: 0.9rem;
     cursor: pointer;
@@ -1888,7 +1888,7 @@ body {
 
 .btn-copy-address:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 212, 170, 0.4);
+    box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4);
 }
 
 .deposit-instructions {
@@ -1896,14 +1896,14 @@ body {
     flex-direction: column;
     gap: 0.5rem;
     padding: 1rem;
-    background: rgba(0, 212, 170, 0.05);
+    background: rgba(59, 130, 246, 0.05);
     border-radius: 10px;
-    border-left: 3px solid #00D4AA;
+    border-left: 3px solid #3b82f6;
 }
 
 .deposit-label {
     font-size: 0.95rem;
-    color: #FFFFFF;
+    color: #1e293b;
     font-weight: 600;
 }
 
@@ -1916,7 +1916,7 @@ body {
 
 .usdc-info {
     font-size: 0.9rem;
-    color: #B0B0B0;
+    color: #64748b;
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -1926,14 +1926,14 @@ body {
     position: relative;
     display: inline-block;
     cursor: help;
-    color: #00D4AA;
+    color: #3b82f6;
 }
 
 .tooltip-text {
     visibility: hidden;
     width: 300px;
-    background-color: #2D2D2D;
-    color: #FFFFFF;
+    background-color: #ffffff;
+    color: #1e293b;
     text-align: center;
     border-radius: 8px;
     padding: 0.75rem;
@@ -1944,9 +1944,10 @@ body {
     margin-left: -150px;
     opacity: 0;
     transition: opacity 0.3s;
-    border: 1px solid #00D4AA;
+    border: 1px solid #3b82f6;
     font-size: 0.85rem;
     line-height: 1.4;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .tooltip:hover .tooltip-text {
@@ -1958,7 +1959,7 @@ body {
     position: relative;
     display: inline-block;
     cursor: help;
-    color: #00D4AA;
+    color: #3b82f6;
     font-size: 0.75rem;
     margin-left: 0.25rem;
 }
@@ -1966,8 +1967,8 @@ body {
 .tooltip-text-mini {
     visibility: hidden;
     width: 180px;
-    background-color: #2D2D2D;
-    color: #FFFFFF;
+    background-color: #ffffff;
+    color: #1e293b;
     text-align: center;
     border-radius: 6px;
     padding: 0.5rem;
@@ -1978,8 +1979,9 @@ body {
     margin-left: -90px;
     opacity: 0;
     transition: opacity 0.3s;
-    border: 1px solid #00D4AA;
+    border: 1px solid #3b82f6;
     font-size: 0.75rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .tooltip-mini:hover .tooltip-text-mini {
