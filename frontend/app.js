@@ -3,7 +3,7 @@
  */
 
 // API Base URL - Auto-detect environment
-const API_URL = 'https://polymarket-bot-api-production.up.railway.app';
+const API_URL = 'http://localhost:8000';
 
 // Global state
 let currentUser = null;
