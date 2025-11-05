@@ -59,9 +59,111 @@
     <!-- Whale Activity Notifications -->
     <div id="whale-notifications" class="whale-notifications-container"></div>
 
+    <!-- Landing Page (shows before login) -->
+    <div id="landing-page" style="display: block;">
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <div class="hero-container">
+                <div class="hero-content">
+                    <h1 class="hero-title">
+                        Trade on Polymarket with<br>
+                        <span class="gradient-text">ZERO Gas Fees! ⛽</span>
+                    </h1>
+                    <p class="hero-subtitle">
+                        Automated trading bot with Safe Wallets, copy trading, and real-time whale alerts.
+                        Powered by Polymarket Builder API - you never pay gas fees!
+                    </p>
+                    <div class="hero-buttons">
+                        <button class="btn-hero-primary" id="hero-get-started">
+                            Get Started Free
+                        </button>
+                        <button class="btn-hero-secondary" id="hero-learn-more">
+                            Learn More ↓
+                        </button>
+                    </div>
+                    <div class="hero-stats">
+                        <div class="stat-item">
+                            <div class="stat-number">$0</div>
+                            <div class="stat-label">Gas Fees</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">30s</div>
+                            <div class="stat-label">Setup Time</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">100%</div>
+                            <div class="stat-label">Free Forever</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="hero-image">
+                    <div class="hero-card">
+                        <div class="hero-card-header">⛽ Safe Wallet</div>
+                        <div class="hero-card-content">
+                            <div class="feature-check">✅ Zero gas fees</div>
+                            <div class="feature-check">✅ Instant setup</div>
+                            <div class="feature-check">✅ Auto-trading</div>
+                            <div class="feature-check">✅ Whale alerts</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section class="features-section" id="features-section">
+            <div class="features-container">
+                <h2 class="section-title">Why Polybot?</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">⛽</div>
+                        <h3>Zero Gas Fees</h3>
+                        <p>Trade without paying any gas fees. Polymarket Builder API covers all transaction costs.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🤖</div>
+                        <h3>Automated Trading</h3>
+                        <p>Set your strategy and let the bot trade for you 24/7 based on market probabilities.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">👥</div>
+                        <h3>Copy Trading</h3>
+                        <p>Follow successful traders and automatically copy their trades in real-time.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🐋</div>
+                        <h3>Whale Alerts</h3>
+                        <p>Get instant notifications when whales make large trades and follow the smart money.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔒</div>
+                        <h3>Safe & Secure</h3>
+                        <p>Your Safe Wallet is deployed on Polygon with industry-standard security.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📊</div>
+                        <h3>Real-Time Analytics</h3>
+                        <p>Track your performance, win rate, and profits with detailed analytics.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Section -->
+        <section class="cta-section">
+            <div class="cta-container">
+                <h2>Ready to Start Trading?</h2>
+                <p>Join thousands of traders enjoying gasless trading on Polymarket</p>
+                <button class="btn-cta" id="cta-get-started">
+                    Create Free Account
+                </button>
+            </div>
+        </section>
+    </div>
+
     <!-- Main Container -->
-    <div class="container">
-        
+    <div class="container" style="display: none;">
+
         <!-- Login/Register Modal -->
         <div class="modal" id="auth-modal" style="display: none;">
             <div class="modal-content auth-modal">
@@ -154,25 +256,54 @@
             
             <!-- Wallet Info Banner -->
             <div class="wallet-info-banner" id="wallet-info-banner">
-                <div class="wallet-info-left">
-                    <span class="wallet-type-badge" id="wallet-type-badge">In-App Wallet</span>
-                    <span class="wallet-address-display" id="wallet-address-display">0x...</span>
+                <div class="wallet-info-section">
+                    <div class="wallet-header">
+                        <span class="wallet-type-badge" id="wallet-type-badge">In-App Wallet</span>
+                    </div>
+                    <div class="wallet-address-section">
+                        <div class="wallet-address-label">Your Wallet Address:</div>
+                        <div class="wallet-address-copy-row">
+                            <span class="wallet-address-full" id="wallet-address-display">0x...</span>
+                            <button class="btn-copy-address" id="copy-address-btn" title="Copy address">
+                                📋 Copy
+                            </button>
+                        </div>
+                    </div>
+                    <div class="deposit-instructions">
+                        <div class="deposit-label">💰 Deposit USDC.e to this address:</div>
+                        <div class="deposit-help">
+                            <span class="usdc-info">
+                                USDC.e
+                                <span class="tooltip">ⓘ
+                                    <span class="tooltip-text">USDC.e is bridged USDC on Polygon network<br>Contract: 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174</span>
+                                </span>
+                            </span>
+                            <a href="https://wallet.polygon.technology/" target="_blank" rel="noopener noreferrer" class="bridge-link">
+                                Bridge from Ethereum →
+                            </a>
+                        </div>
+                    </div>
                 </div>
                 <div class="wallet-info-right">
                     <div class="balance-item">
-                        <span class="balance-label">USDC:</span>
+                        <span class="balance-label">
+                            USDC.e
+                            <span class="tooltip-mini">ⓘ
+                                <span class="tooltip-text-mini">Bridged USDC on Polygon</span>
+                            </span>
+                        </span>
                         <span class="balance-value" id="usdc-balance">$0.00</span>
                     </div>
                     <div class="balance-item">
-                        <span class="balance-label">MATIC:</span>
+                        <span class="balance-label">POL:</span>
                         <span class="balance-value" id="matic-balance">0.00</span>
                     </div>
-                    <button class="btn-small" id="refresh-balance-btn">Refresh</button>
+                    <button class="btn-small" id="refresh-balance-btn">🔄 Refresh</button>
                     <button class="btn-small btn-danger-small" id="export-key-btn" style="display: none;">
-                        Export Key
+                        🔑 Export Key
                     </button>
                     <button class="btn-small btn-approve-usdc" id="approve-usdc-btn" style="display: none;" title="Approve USDC.e for trading">
-                        ✅ Approve
+                        ✅ Approve USDC.e
                     </button>
                 </div>
             </div>

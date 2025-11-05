@@ -56,21 +56,67 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedUser) {
         currentUser = JSON.parse(savedUser);
         currentUserId = currentUser.id;
+        // Hide landing page, show dashboard
+        document.getElementById('landing-page').style.display = 'none';
+        document.querySelector('.container').style.display = 'block';
         checkWalletAndProceed();
     } else {
-        // Show dashboard in demo mode without login
-        showDashboardDemo();
+        // Show landing page (not logged in)
+        showLandingPage();
     }
 
     // Initialize event listeners
     setTimeout(initEventListeners, 100);
 });
 
+// ==================== LANDING PAGE ====================
+
+function showLandingPage() {
+    document.getElementById('landing-page').style.display = 'block';
+    document.querySelector('.container').style.display = 'none';
+    document.querySelector('.navbar').style.display = 'flex';
+}
+
+function hideLandingPage() {
+    document.getElementById('landing-page').style.display = 'none';
+    document.querySelector('.container').style.display = 'block';
+}
+
 // ==================== EVENT LISTENERS ====================
 
 function initEventListeners() {
     console.log('Initializing event listeners...');
-    
+
+    // Landing Page CTAs
+    const heroGetStarted = document.getElementById('hero-get-started');
+    if (heroGetStarted) {
+        heroGetStarted.addEventListener('click', () => {
+            showAuthModal();
+            switchTab('register');
+        });
+    }
+
+    const heroLearnMore = document.getElementById('hero-learn-more');
+    if (heroLearnMore) {
+        heroLearnMore.addEventListener('click', () => {
+            document.getElementById('features-section').scrollIntoView({ behavior: 'smooth' });
+        });
+    }
+
+    const ctaGetStarted = document.getElementById('cta-get-started');
+    if (ctaGetStarted) {
+        ctaGetStarted.addEventListener('click', () => {
+            showAuthModal();
+            switchTab('register');
+        });
+    }
+
+    // Wallet Copy Address
+    const copyAddressBtn = document.getElementById('copy-address-btn');
+    if (copyAddressBtn) {
+        copyAddressBtn.addEventListener('click', copyWalletAddress);
+    }
+
     // Auth tabs
     const loginTab = document.getElementById('login-tab');
     const registerTab = document.getElementById('register-tab');
@@ -220,6 +266,11 @@ async function handleLogin() {
             currentUserId = data.user.id;
             localStorage.setItem('polybot_user', JSON.stringify(data.user));
             showNotification('✅ Login successful!', 'success');
+
+            // Hide landing page and show dashboard
+            hideLandingPage();
+            closeAuthModal();
+
             checkWalletAndProceed();
         } else {
             showNotification('❌ Login failed. ' + (data.message || 'Invalid credentials.'), 'error');
@@ -272,6 +323,11 @@ async function handleRegister() {
             currentUserId = data.user.id;
             localStorage.setItem('polybot_user', JSON.stringify(data.user));
             showNotification('🎉 Account created! Completely FREE forever!', 'success');
+
+            // Hide landing page and show dashboard
+            hideLandingPage();
+            closeAuthModal();
+
             checkWalletAndProceed();
         } else {
             showNotification('❌ Registration failed. ' + (data.message || 'Email may already exist.'), 'error');
@@ -572,6 +628,53 @@ function updateWalletDisplay(wallet) {
 
     // Check USDC approval status and show/hide approve button
     checkUSDCApprovalStatus(wallet.wallet_type);
+}
+
+//==================== WALLET ADDRESS COPY ====================
+
+async function copyWalletAddress() {
+    try {
+        const walletAddressElement = document.getElementById('wallet-address-display');
+        if (!walletAddressElement) {
+            showNotification('❌ Wallet address not found', 'error');
+            return;
+        }
+
+        const address = walletAddressElement.textContent.trim();
+
+        // Copy to clipboard
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(address);
+            showNotification('✅ Wallet address copied!', 'success');
+
+            // Visual feedback - change button text briefly
+            const copyBtn = document.getElementById('copy-address-btn');
+            if (copyBtn) {
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = '✅ Copied!';
+                copyBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                    copyBtn.style.background = '';
+                }, 2000);
+            }
+        } else {
+            // Fallback for older browsers
+            const textarea = document.createElement('textarea');
+            textarea.value = address;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showNotification('✅ Wallet address copied!', 'success');
+        }
+    } catch (error) {
+        console.error('Error copying address:', error);
+        showNotification('❌ Failed to copy address', 'error');
+    }
 }
 
 // ==================== PRIVATE KEY EXPORT ====================
