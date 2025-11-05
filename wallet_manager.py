@@ -2,14 +2,19 @@
 Wallet Manager for Polymarket Trading Bot
 Supports both in-app wallets and MetaMask connection
 WITH REAL BLOCKCHAIN INTEGRATION & PRIVATE KEY EXPORT
+✨ NOW WITH SAFE WALLET SUPPORT VIA POLYMARKET NODE.JS SERVICE
 """
 
 import secrets
 import json
 import base64
+import requests
 from typing import Dict, Optional
 from mongodb_database import MongoDatabase
 from blockchain_manager import BlockchainManager
+
+# Polymarket Node.js Service URL
+POLYMARKET_SERVICE_URL = "https://polymarket-service-production.up.railway.app"
 
 class WalletManager:
     """
@@ -143,7 +148,129 @@ class WalletManager:
                 "error": str(e),
                 "error_type": type(e).__name__
             }
-    
+
+    # ==================== SAFE WALLET CREATION (GASLESS VIA POLYMARKET) ====================
+
+    def create_safe_wallet(self, user_id: str) -> Dict:
+        """
+        Create a Safe Wallet via Polymarket Node.js service (GASLESS!)
+        This creates both an EOA (owner) and deploys a Safe Wallet
+
+        Args:
+            user_id: User's database ID
+
+        Returns:
+            Dictionary with Safe wallet address and owner address
+        """
+        try:
+            from bson.objectid import ObjectId
+            from eth_account import Account
+            import secrets
+
+            print(f"[SAFE WALLET] Creating Safe Wallet for user: {user_id}")
+
+            # Check if wallet already exists for this user
+            wallets_collection = self.db.db['wallets']
+            existing_wallet = wallets_collection.find_one({"user_id": user_id})
+
+            if existing_wallet:
+                print(f"[SAFE WALLET] Wallet already exists for user {user_id}")
+                existing_address = existing_wallet.get('wallet_address')
+                return {
+                    "success": True,
+                    "wallet_address": existing_address,
+                    "wallet_type": existing_wallet.get('wallet_type', 'unknown'),
+                    "message": "Wallet already exists",
+                    "existing": True
+                }
+
+            # Step 1: Create EOA (owner wallet)
+            print(f"[SAFE WALLET] Creating EOA owner wallet...")
+            private_key = "0x" + secrets.token_hex(32)
+            account = Account.from_key(private_key)
+            owner_address = account.address
+            print(f"[SAFE WALLET] Owner address created: {owner_address}")
+
+            # Step 2: Deploy Safe Wallet via Polymarket Node.js service
+            print(f"[SAFE WALLET] Deploying Safe Wallet via Polymarket service...")
+            try:
+                response = requests.post(
+                    f"{POLYMARKET_SERVICE_URL}/deploy-safe",
+                    json={
+                        "privateKey": private_key,
+                        "ownerAddress": owner_address
+                    },
+                    timeout=30
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get('success'):
+                        safe_address = data['safeAddress']
+                        print(f"[SAFE WALLET] ✅ Safe deployed: {safe_address}")
+                        print(f"[SAFE WALLET] Owner: {owner_address}")
+                        print(f"[SAFE WALLET] Gasless: {data.get('gasless', True)}")
+                    else:
+                        raise Exception(f"Safe deployment failed: {data.get('error')}")
+                else:
+                    raise Exception(f"HTTP {response.status_code}: {response.text}")
+
+            except Exception as e:
+                print(f"[SAFE WALLET ERROR] Failed to deploy Safe: {e}")
+                # Fallback to regular EOA wallet if Safe deployment fails
+                print(f"[SAFE WALLET] Falling back to EOA wallet...")
+                safe_address = owner_address
+                print(f"[SAFE WALLET WARNING] Using EOA as fallback: {safe_address}")
+
+            # Encrypt private key before storing
+            encrypted_key = self._encrypt_key(private_key)
+
+            # Store wallet in database
+            self.db.users.update_one(
+                {"_id": ObjectId(user_id)},
+                {
+                    "$set": {
+                        "wallet_address": safe_address,  # The Safe address
+                        "wallet_type": "safe",
+                        "owner_address": owner_address   # The EOA that controls the Safe
+                    }
+                }
+            )
+
+            # Store encrypted private key separately (for the owner EOA)
+            wallets_collection.insert_one({
+                "user_id": user_id,
+                "wallet_address": safe_address,  # Safe address
+                "owner_address": owner_address,   # EOA owner
+                "wallet_type": "safe",
+                "private_key_encrypted": encrypted_key  # Owner's private key
+            })
+
+            print(f"[SAFE WALLET] ✅ Safe Wallet saved to database for user {user_id}")
+
+            return {
+                "success": True,
+                "wallet_address": safe_address,
+                "owner_address": owner_address,
+                "wallet_type": "safe",
+                "gasless": True,
+                "message": "Safe Wallet deployed successfully with FREE GAS! ⛽"
+            }
+
+        except Exception as e:
+            print(f"[SAFE WALLET ERROR] ❌ Error creating Safe Wallet for user {user_id}")
+            print(f"[SAFE WALLET ERROR] Error type: {type(e).__name__}")
+            print(f"[SAFE WALLET ERROR] Error message: {str(e)}")
+
+            import traceback
+            traceback.print_exc()
+
+            return {
+                "success": False,
+                "error": str(e),
+                "error_type": type(e).__name__
+            }
+
     # ==================== ENCRYPTION/DECRYPTION ====================
     
     def _encrypt_key(self, private_key: str) -> str:
@@ -346,34 +473,43 @@ class WalletManager:
     def get_user_wallet(self, user_id: str) -> Optional[Dict]:
         """
         Get user's wallet information with REAL blockchain balances
-        
+        ✨ NOW INCLUDES SAFE WALLET INFO
+
         Args:
             user_id: User's database ID
-            
+
         Returns:
             Wallet information with real balances or None
         """
         try:
             from bson.objectid import ObjectId
             user = self.db.users.find_one({"_id": ObjectId(user_id)})
-            
+
             if not user or not user.get('wallet_address'):
                 return None
-            
+
             wallet_address = user['wallet_address']
             wallet_type = user.get('wallet_type', 'unknown')
-            
+            owner_address = user.get('owner_address')  # For Safe wallets
+
             # Get REAL balance from blockchain
             balance_info = self.get_wallet_balance(wallet_address)
-            
-            return {
+
+            wallet_info = {
                 "wallet_address": wallet_address,
                 "wallet_type": wallet_type,
                 "matic_balance": balance_info.get('matic_balance', 0.0),
                 "usdc_balance": balance_info.get('usdc_balance', 0.0),
                 "total_usd": balance_info.get('total_usd', 0.0)
             }
-            
+
+            # Add owner_address for Safe wallets
+            if wallet_type == 'safe' and owner_address:
+                wallet_info['owner_address'] = owner_address
+                wallet_info['gasless'] = True
+
+            return wallet_info
+
         except Exception as e:
             print(f"[ERROR] Error getting wallet info: {e}")
             return None

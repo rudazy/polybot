@@ -909,6 +909,7 @@ body {
     text-align: center;
     transition: all 0.3s ease;
     cursor: pointer;
+    position: relative;
 }
 
 .wallet-option:hover {
@@ -916,6 +917,51 @@ body {
     background: rgba(124, 58, 237, 0.1);
     transform: translateY(-5px);
     box-shadow: 0 10px 30px rgba(124, 58, 237, 0.3);
+}
+
+/* Safe Wallet Recommended Option */
+.wallet-option-recommended {
+    border: 3px solid #10b981 !important;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05)) !important;
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+.wallet-option-recommended:hover {
+    border-color: #10b981 !important;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.1)) !important;
+    transform: translateY(-8px) !important;
+    box-shadow: 0 15px 40px rgba(16, 185, 129, 0.5) !important;
+}
+
+/* Recommended Badge */
+.recommended-badge {
+    position: absolute;
+    top: -12px;
+    right: 20px;
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    color: #1e293b;
+    padding: 0.4rem 1rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
+    animation: pulse 2s infinite;
+}
+
+/* Gasless Button */
+.btn-gasless {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4) !important;
+    font-size: 1.05rem !important;
+    padding: 1rem 1.5rem !important;
+}
+
+.btn-gasless:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+    box-shadow: 0 12px 30px rgba(16, 185, 129, 0.6) !important;
+    transform: translateY(-3px) !important;
 }
 
 .option-icon {

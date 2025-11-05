@@ -341,15 +341,21 @@ def register_user(user: UserCreate):
             {'$set': {'password': hashed_password}}
         )
 
-        # AUTO-CREATE IN-APP WALLET FOR NEW USER
-        print(f"[REGISTER] Auto-creating wallet for user: {user_id}")
-        wallet_result = wallet_manager.create_in_app_wallet(user_id)
+        # AUTO-CREATE SAFE WALLET FOR NEW USER (GASLESS!)
+        print(f"[REGISTER] Auto-creating Safe Wallet for user: {user_id}")
+        wallet_result = wallet_manager.create_safe_wallet(user_id)
 
         if not wallet_result.get('success'):
-            print(f"[REGISTER WARNING] Wallet creation failed: {wallet_result.get('error')}")
-            # Continue anyway - user can create wallet later
+            print(f"[REGISTER WARNING] Safe Wallet creation failed: {wallet_result.get('error')}")
+            # Fallback to regular EOA wallet
+            print(f"[REGISTER] Falling back to EOA wallet...")
+            wallet_result = wallet_manager.create_in_app_wallet(user_id)
+            if wallet_result.get('success'):
+                print(f"[REGISTER] EOA Wallet created: {wallet_result.get('wallet_address')}")
         else:
-            print(f"[REGISTER] Wallet created: {wallet_result.get('wallet_address')}")
+            print(f"[REGISTER] Safe Wallet created: {wallet_result.get('wallet_address')}")
+            print(f"[REGISTER] Owner Address: {wallet_result.get('owner_address')}")
+            print(f"[REGISTER] Gasless: {wallet_result.get('gasless', False)}")
 
         # Get complete user data
         user_data = db.get_user(user_id=user_id)
@@ -845,7 +851,7 @@ def get_recent_activity(user_id: str, limit: int = 5):
 def create_in_app_wallet(user_id: str):
     """Create in-app wallet for user (Quick Start option)"""
     result = wallet_manager.create_in_app_wallet(user_id)
-    
+
     if result['success']:
         return {
             "success": True,
@@ -853,6 +859,32 @@ def create_in_app_wallet(user_id: str):
         }
     else:
         raise HTTPException(status_code=400, detail=result.get('error', 'Failed to create wallet'))
+
+
+@app.post("/wallet/create-safe/{user_id}")
+def create_safe_wallet(user_id: str):
+    """
+    ✨ Create Safe Wallet for user via Polymarket Node.js service
+    This is the NEW default wallet creation method (GASLESS!)
+    """
+    print(f"[API] Safe Wallet creation requested for user: {user_id}")
+
+    result = wallet_manager.create_safe_wallet(user_id)
+
+    if result['success']:
+        print(f"[API] ✅ Safe Wallet created successfully")
+        print(f"[API] Safe Address: {result.get('wallet_address')}")
+        print(f"[API] Owner Address: {result.get('owner_address')}")
+        print(f"[API] Gasless: {result.get('gasless', False)}")
+
+        return {
+            "success": True,
+            "wallet": result,
+            "message": "Safe Wallet created with FREE GAS! ⛽"
+        }
+    else:
+        print(f"[API] ❌ Safe Wallet creation failed: {result.get('error')}")
+        raise HTTPException(status_code=400, detail=result.get('error', 'Failed to create Safe Wallet'))
 
 
 @app.post("/wallet/connect-external/{user_id}")

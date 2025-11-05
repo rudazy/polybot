@@ -403,16 +403,37 @@ async function handleCreateInAppWallet() {
             }
         }
 
-        showNotification('🔐 Creating your wallet...', 'info');
+        showNotification('🔐 Creating your Safe Wallet with FREE GAS...', 'info');
 
-        const response = await fetch(`${API_URL}/wallet/create-inapp/${currentUserId}`, {
+        // TRY SAFE WALLET FIRST (GASLESS!)
+        let response = await fetch(`${API_URL}/wallet/create-safe/${currentUserId}`, {
             method: 'POST'
         });
 
-        const data = await response.json();
+        let data = await response.json();
+
+        // Fallback to regular EOA wallet if Safe creation fails
+        if (!data.success) {
+            console.warn('[WALLET] Safe Wallet creation failed, falling back to EOA...');
+            showNotification('⚠️ Safe Wallet failed, creating regular wallet...', 'info');
+
+            response = await fetch(`${API_URL}/wallet/create-inapp/${currentUserId}`, {
+                method: 'POST'
+            });
+
+            data = await response.json();
+        }
 
         if (data.success) {
-            showNotification('✅ Wallet created successfully!', 'success');
+            const walletType = data.wallet?.wallet_type || 'unknown';
+            const gasless = data.wallet?.gasless || false;
+
+            if (walletType === 'safe' && gasless) {
+                showNotification('✅ Safe Wallet created with FREE GAS! ⛽', 'success');
+            } else {
+                showNotification('✅ Wallet created successfully!', 'success');
+            }
+
             hasWallet = true;
             showDashboard();
             loadWalletBalance();
@@ -508,7 +529,20 @@ function updateWalletDisplay(wallet) {
 
     const walletTypeBadge = document.getElementById('wallet-type-badge');
     if (walletTypeBadge) {
-        walletTypeBadge.textContent = wallet.wallet_type === 'in-app' ? '🚀 In-App Wallet' : '🦊 MetaMask';
+        // Display wallet type with FREE GAS badge for Safe wallets
+        if (wallet.wallet_type === 'safe') {
+            walletTypeBadge.textContent = '⛽ Safe Wallet (FREE GAS)';
+            walletTypeBadge.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+        } else if (wallet.wallet_type === 'in-app') {
+            walletTypeBadge.textContent = '🚀 In-App Wallet';
+            walletTypeBadge.style.background = '';
+        } else if (wallet.wallet_type === 'external' || wallet.wallet_type === 'metamask') {
+            walletTypeBadge.textContent = '🦊 MetaMask';
+            walletTypeBadge.style.background = '';
+        } else {
+            walletTypeBadge.textContent = '💼 Wallet';
+            walletTypeBadge.style.background = '';
+        }
     }
 
     const walletAddressDisplay = document.getElementById('wallet-address-display');
@@ -528,7 +562,8 @@ function updateWalletDisplay(wallet) {
 
     const exportKeyBtn = document.getElementById('export-key-btn');
     if (exportKeyBtn) {
-        if (wallet.wallet_type === 'in-app') {
+        // Allow key export for both in-app and Safe wallets (exports the owner key for Safe)
+        if (wallet.wallet_type === 'in-app' || wallet.wallet_type === 'safe') {
             exportKeyBtn.style.display = 'block';
         } else {
             exportKeyBtn.style.display = 'none';
