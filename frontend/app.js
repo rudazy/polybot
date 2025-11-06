@@ -82,11 +82,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 const btn = document.getElementById('register-btn');
                 console.log('[TEST] Button found:', btn);
                 console.log('[TEST] Button onclick:', btn ? btn.onclick : 'N/A');
-                console.log('[TEST] Calling window.handleRegister directly...');
-                window.handleRegister();
+                console.log('[TEST] Simulating click event...');
+                btn.click();
+                console.log('[TEST] After click simulation');
             }, 200);
         };
-        console.log('[TEST] Run testRegisterButton() in console to test');
+
+        window.testRegisterDirect = function() {
+            console.log('[TEST] Calling handleRegister directly...');
+            window.handleRegister();
+        };
+
+        console.log('[TEST] Run testRegisterButton() or testRegisterDirect() in console to test');
     }, 500);
 });
 
@@ -172,46 +179,15 @@ function initEventListeners() {
     const resetPasswordBtn = document.getElementById('reset-password-btn');
     const cancelResetBtn = document.getElementById('cancel-reset-btn');
 
+    // Don't attach any JavaScript event listeners since we have inline onclick handlers
     if (loginBtn) {
-        console.log('[EVENT] Login button found, attaching listener');
-        // Remove any existing listeners
-        loginBtn.replaceWith(loginBtn.cloneNode(true));
-        const newLoginBtn = document.getElementById('login-btn');
-        newLoginBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('[EVENT] Login button clicked!');
-            window.handleLogin();
-        });
-        // Also add as onclick attribute as fallback
-        newLoginBtn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('[EVENT] Login onclick fired!');
-            window.handleLogin();
-        };
+        console.log('[EVENT] Login button found with inline onclick');
     } else {
         console.error('[EVENT] Login button NOT found!');
     }
 
     if (registerBtn) {
-        console.log('[EVENT] Register button found, attaching listener');
-        // Remove any existing listeners
-        registerBtn.replaceWith(registerBtn.cloneNode(true));
-        const newRegisterBtn = document.getElementById('register-btn');
-        newRegisterBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('[EVENT] Register button clicked!');
-            window.handleRegister();
-        });
-        // Also add as onclick attribute as fallback
-        newRegisterBtn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('[EVENT] Register onclick fired!');
-            window.handleRegister();
-        };
+        console.log('[EVENT] Register button found with inline onclick');
     } else {
         console.error('[EVENT] Register button NOT found!');
     }
