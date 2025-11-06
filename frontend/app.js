@@ -153,14 +153,44 @@ function initEventListeners() {
 
     if (loginBtn) {
         console.log('[EVENT] Login button found, attaching listener');
-        loginBtn.addEventListener('click', handleLogin);
+        // Remove any existing listeners
+        loginBtn.replaceWith(loginBtn.cloneNode(true));
+        const newLoginBtn = document.getElementById('login-btn');
+        newLoginBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('[EVENT] Login button clicked!');
+            handleLogin();
+        });
+        // Also add as onclick attribute as fallback
+        newLoginBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('[EVENT] Login onclick fired!');
+            handleLogin();
+        };
     } else {
         console.error('[EVENT] Login button NOT found!');
     }
 
     if (registerBtn) {
         console.log('[EVENT] Register button found, attaching listener');
-        registerBtn.addEventListener('click', handleRegister);
+        // Remove any existing listeners
+        registerBtn.replaceWith(registerBtn.cloneNode(true));
+        const newRegisterBtn = document.getElementById('register-btn');
+        newRegisterBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('[EVENT] Register button clicked!');
+            handleRegister();
+        });
+        // Also add as onclick attribute as fallback
+        newRegisterBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('[EVENT] Register onclick fired!');
+            handleRegister();
+        };
     } else {
         console.error('[EVENT] Register button NOT found!');
     }
