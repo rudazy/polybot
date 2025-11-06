@@ -1945,4 +1945,4 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-console.log('✅ App.js with wallet integration and private key export loaded successfully');
+console.log('✅ App.js v2.1 - Register button fix loaded successfully');
