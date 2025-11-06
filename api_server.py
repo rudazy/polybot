@@ -961,6 +961,10 @@ def export_private_key(user_id: str, key_export: PrivateKeyExport):
             "explanation": "You connected an external wallet (Rabby, MetaMask, etc.). The private keys for external wallets are stored securely in your browser wallet extension, not on our servers. To export your private key, use your wallet app (Rabby/MetaMask settings)."
         }
 
+    # For Safe wallets, we export the OWNER's private key (the EOA that controls the Safe)
+    if wallet_type == 'safe':
+        print(f"[EXPORT API] Safe wallet detected - will export owner's private key")
+
     # Check password for in-app wallets
     stored_password = user_data.get('password')
     if stored_password:
@@ -977,13 +981,27 @@ def export_private_key(user_id: str, key_export: PrivateKeyExport):
 
     if private_key:
         print(f"[EXPORT API] ✅ Private key exported successfully")
-        return {
-            "success": True,
-            "private_key": private_key,
-            "wallet_address": wallet_address,
-            "wallet_type": "in-app",
-            "warning": "⚠️ KEEP THIS SAFE! Never share your private key with anyone!"
-        }
+
+        # For Safe wallets, clarify that this is the owner's key
+        if wallet_type == 'safe':
+            owner_address = user_data.get('owner_address', 'Unknown')
+            return {
+                "success": True,
+                "private_key": private_key,
+                "wallet_address": wallet_address,
+                "owner_address": owner_address,
+                "wallet_type": "safe",
+                "warning": "⚠️ KEEP THIS SAFE! Never share your private key with anyone!",
+                "note": "This is the OWNER key that controls your Safe wallet"
+            }
+        else:
+            return {
+                "success": True,
+                "private_key": private_key,
+                "wallet_address": wallet_address,
+                "wallet_type": wallet_type,
+                "warning": "⚠️ KEEP THIS SAFE! Never share your private key with anyone!"
+            }
     else:
         print(f"[EXPORT API] ❌ Private key export failed")
         return {

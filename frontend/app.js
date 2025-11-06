@@ -328,7 +328,17 @@ async function handleRegister() {
             hideLandingPage();
             closeAuthModal();
 
-            checkWalletAndProceed();
+            // If wallet was created during registration, use it immediately
+            if (data.wallet && data.wallet.wallet_address) {
+                console.log('[REGISTER] Wallet created automatically:', data.wallet.wallet_address);
+                hasWallet = true;
+                showDashboard();
+                // Get full wallet info including balance
+                loadWalletBalance();
+            } else {
+                // Fallback: check wallet status
+                checkWalletAndProceed();
+            }
         } else {
             showNotification('Registration failed. ' + (data.message || 'Email may already exist.'), 'error');
         }
@@ -572,6 +582,13 @@ async function loadWalletBalance() {
 }
 
 function updateWalletDisplay(wallet) {
+    // Validate wallet address exists and is complete (should be 42 chars: 0x + 40 hex)
+    if (!wallet.wallet_address || wallet.wallet_address.length < 42) {
+        console.error('[WALLET] Invalid wallet address:', wallet.wallet_address);
+        showNotification('Invalid wallet address. Please contact support.', 'error');
+        return;
+    }
+
     const shortAddress = wallet.wallet_address.slice(0, 6) + '...' + wallet.wallet_address.slice(-4);
     document.getElementById('wallet-address').textContent = shortAddress;
 
@@ -706,7 +723,7 @@ async function handleExportPrivateKey() {
         const data = await response.json();
 
         if (data.success) {
-            showPrivateKeyModal(data.private_key);
+            showPrivateKeyModal(data.private_key, data.wallet_type, data.note);
         } else {
             showNotification('' + (data.message || 'Cannot export private key'), 'error');
         }
@@ -716,18 +733,26 @@ async function handleExportPrivateKey() {
     }
 }
 
-function showPrivateKeyModal(privateKey) {
+function showPrivateKeyModal(privateKey, walletType = 'in-app', note = null) {
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.display = 'flex';
-    
+
+    // Add special note for Safe wallets
+    const safeWalletNote = walletType === 'safe' ? `
+        <p style="color: #3b82f6; margin: 1rem 0; padding: 0.75rem; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border-left: 3px solid #3b82f6;">
+            ℹ️ <strong>Safe Wallet:</strong> This is your OWNER key that controls your Safe wallet. Import this key to access and control your Safe.
+        </p>
+    ` : '';
+
     modal.innerHTML = `
         <div class="modal-content" style="max-width: 600px;">
             <h2 style="color: #ef4444;">🔑 Your Private Key</h2>
             <p style="color: #f59e0b; margin: 1rem 0;">
                 ⚠️ KEEP THIS EXTREMELY SAFE! Never share it with anyone!
             </p>
-            
+            ${safeWalletNote}
+
             <div style="background: #0f0f23; padding: 1rem; border-radius: 10px; margin: 1.5rem 0; border: 1px solid #ef4444;">
                 <code id="private-key-display" style="
                     word-break: break-all;
@@ -737,7 +762,7 @@ function showPrivateKeyModal(privateKey) {
                     font-family: 'Courier New', monospace;
                 ">${privateKey}</code>
             </div>
-            
+
             <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
                 <button class="btn-primary" id="copy-key-btn" style="flex: 1;">
                     📋 Copy to Clipboard
@@ -746,7 +771,7 @@ function showPrivateKeyModal(privateKey) {
                     Close
                 </button>
             </div>
-            
+
             <p style="color: #a0a0c0; font-size: 0.85rem; margin-top: 1rem; text-align: center;">
                 💡 Import this key into MetaMask or any Web3 wallet to access your funds
             </p>

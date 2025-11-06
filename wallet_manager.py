@@ -105,6 +105,15 @@ class WalletManager:
 
             print(f"[WALLET] Created wallet: {wallet_address}")
 
+            # Validate wallet address is complete (42 characters: 0x + 40 hex)
+            if not wallet_address or len(wallet_address) != 42 or not wallet_address.startswith('0x'):
+                print(f"[WALLET ERROR] Invalid wallet address format: {wallet_address}")
+                return {
+                    "success": False,
+                    "error": "Invalid wallet address format generated",
+                    "wallet_address": wallet_address
+                }
+
             # Encrypt private key before storing
             encrypted_key = self._encrypt_key(private_key)
 
@@ -222,6 +231,22 @@ class WalletManager:
                 safe_address = owner_address
                 print(f"[SAFE WALLET WARNING] Using EOA as fallback: {safe_address}")
 
+            # Validate wallet addresses are complete (42 characters: 0x + 40 hex)
+            if not safe_address or len(safe_address) != 42 or not safe_address.startswith('0x'):
+                print(f"[SAFE WALLET ERROR] Invalid Safe address format: {safe_address}")
+                return {
+                    "success": False,
+                    "error": "Invalid Safe wallet address format generated",
+                    "safe_address": safe_address
+                }
+            if not owner_address or len(owner_address) != 42 or not owner_address.startswith('0x'):
+                print(f"[SAFE WALLET ERROR] Invalid owner address format: {owner_address}")
+                return {
+                    "success": False,
+                    "error": "Invalid owner address format generated",
+                    "owner_address": owner_address
+                }
+
             # Encrypt private key before storing
             encrypted_key = self._encrypt_key(private_key)
 
@@ -332,8 +357,8 @@ class WalletManager:
             print(f"[EXPORT] Wallet type: {wallet_type}")
             print(f"[EXPORT] Wallet address: {wallet_address}")
 
-            if wallet_type != 'in-app':
-                print(f"[EXPORT] ❌ Cannot export {wallet_type} wallet keys!")
+            if wallet_type == 'external':
+                print(f"[EXPORT] ❌ Cannot export external wallet keys!")
                 print(f"[EXPORT] External wallet keys are stored in your browser/wallet app (Rabby, MetaMask, etc.)")
                 return None
 
