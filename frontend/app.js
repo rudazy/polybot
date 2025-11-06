@@ -179,15 +179,29 @@ function initEventListeners() {
     const resetPasswordBtn = document.getElementById('reset-password-btn');
     const cancelResetBtn = document.getElementById('cancel-reset-btn');
 
-    // Don't attach any JavaScript event listeners since we have inline onclick handlers
+    // Set onclick handlers directly in JavaScript (more reliable than HTML attribute)
     if (loginBtn) {
-        console.log('[EVENT] Login button found with inline onclick');
+        console.log('[EVENT] Login button found, setting onclick handler');
+        loginBtn.onclick = function(e) {
+            console.log('[CLICK] Login button clicked!');
+            e.preventDefault();
+            e.stopPropagation();
+            window.handleLogin();
+            return false;
+        };
     } else {
         console.error('[EVENT] Login button NOT found!');
     }
 
     if (registerBtn) {
-        console.log('[EVENT] Register button found with inline onclick');
+        console.log('[EVENT] Register button found, setting onclick handler');
+        registerBtn.onclick = function(e) {
+            console.log('[CLICK] Register button clicked!');
+            e.preventDefault();
+            e.stopPropagation();
+            window.handleRegister();
+            return false;
+        };
     } else {
         console.error('[EVENT] Register button NOT found!');
     }
