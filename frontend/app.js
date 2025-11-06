@@ -151,8 +151,19 @@ function initEventListeners() {
     const resetPasswordBtn = document.getElementById('reset-password-btn');
     const cancelResetBtn = document.getElementById('cancel-reset-btn');
 
-    if (loginBtn) loginBtn.addEventListener('click', handleLogin);
-    if (registerBtn) registerBtn.addEventListener('click', handleRegister);
+    if (loginBtn) {
+        console.log('[EVENT] Login button found, attaching listener');
+        loginBtn.addEventListener('click', handleLogin);
+    } else {
+        console.error('[EVENT] Login button NOT found!');
+    }
+
+    if (registerBtn) {
+        console.log('[EVENT] Register button found, attaching listener');
+        registerBtn.addEventListener('click', handleRegister);
+    } else {
+        console.error('[EVENT] Register button NOT found!');
+    }
     if (disconnectBtn) disconnectBtn.addEventListener('click', handleDisconnect);
     if (loginRegisterBtn) {
         loginRegisterBtn.addEventListener('click', () => {
@@ -287,9 +298,13 @@ async function handleLogin() {
 }
 
 async function handleRegister() {
+    console.log('[REGISTER] Button clicked, starting registration process');
+
     const email = document.getElementById('register-email').value.trim();
     const password = document.getElementById('register-password').value;
     const passwordConfirm = document.getElementById('register-password-confirm').value;
+
+    console.log('[REGISTER] Email:', email, 'Password length:', password.length);
 
     if (!email) {
         alert('Please enter your email');
