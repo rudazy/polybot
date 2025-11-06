@@ -154,7 +154,12 @@ function initEventListeners() {
     if (loginBtn) loginBtn.addEventListener('click', handleLogin);
     if (registerBtn) registerBtn.addEventListener('click', handleRegister);
     if (disconnectBtn) disconnectBtn.addEventListener('click', handleDisconnect);
-    if (loginRegisterBtn) loginRegisterBtn.addEventListener('click', showAuthModal);
+    if (loginRegisterBtn) {
+        loginRegisterBtn.addEventListener('click', () => {
+            showAuthModal();
+            switchTab('login');
+        });
+    }
     if (closeAuthModal) closeAuthModal.addEventListener('click', hideAuthModal);
     if (forgotPasswordLink) forgotPasswordLink.addEventListener('click', showForgotPasswordModal);
     if (resetPasswordBtn) resetPasswordBtn.addEventListener('click', handlePasswordReset);
@@ -269,7 +274,7 @@ async function handleLogin() {
 
             // Hide landing page and show dashboard
             hideLandingPage();
-            closeAuthModal();
+            hideAuthModal();
 
             checkWalletAndProceed();
         } else {
@@ -326,7 +331,7 @@ async function handleRegister() {
 
             // Hide landing page and show dashboard
             hideLandingPage();
-            closeAuthModal();
+            hideAuthModal();
 
             // If wallet was created during registration, use it immediately
             if (data.wallet && data.wallet.wallet_address) {
@@ -973,6 +978,25 @@ function showAuthModal() {
 
 function hideAuthModal() {
     document.getElementById('auth-modal').style.display = 'none';
+}
+
+function switchTab(tab) {
+    const loginTab = document.getElementById('login-tab');
+    const registerTab = document.getElementById('register-tab');
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+
+    if (tab === 'login') {
+        loginTab.classList.add('active');
+        registerTab.classList.remove('active');
+        loginForm.style.display = 'flex';
+        registerForm.style.display = 'none';
+    } else if (tab === 'register') {
+        registerTab.classList.add('active');
+        loginTab.classList.remove('active');
+        registerForm.style.display = 'flex';
+        loginForm.style.display = 'none';
+    }
 }
 
 function showWalletModal() {
