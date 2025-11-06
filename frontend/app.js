@@ -160,14 +160,14 @@ function initEventListeners() {
             e.preventDefault();
             e.stopPropagation();
             console.log('[EVENT] Login button clicked!');
-            handleLogin();
+            window.handleLogin();
         });
         // Also add as onclick attribute as fallback
         newLoginBtn.onclick = (e) => {
             e.preventDefault();
             e.stopPropagation();
             console.log('[EVENT] Login onclick fired!');
-            handleLogin();
+            window.handleLogin();
         };
     } else {
         console.error('[EVENT] Login button NOT found!');
@@ -182,14 +182,14 @@ function initEventListeners() {
             e.preventDefault();
             e.stopPropagation();
             console.log('[EVENT] Register button clicked!');
-            handleRegister();
+            window.handleRegister();
         });
         // Also add as onclick attribute as fallback
         newRegisterBtn.onclick = (e) => {
             e.preventDefault();
             e.stopPropagation();
             console.log('[EVENT] Register onclick fired!');
-            handleRegister();
+            window.handleRegister();
         };
     } else {
         console.error('[EVENT] Register button NOT found!');
@@ -281,7 +281,8 @@ function initEventListeners() {
 
 // ==================== AUTHENTICATION ====================
 
-async function handleLogin() {
+// Make functions globally accessible for inline onclick handlers
+window.handleLogin = async function() {
     const email = document.getElementById('login-email').value.trim();
     const password = document.getElementById('login-password').value;
 
@@ -327,7 +328,7 @@ async function handleLogin() {
     }
 }
 
-async function handleRegister() {
+window.handleRegister = async function() {
     console.log('[REGISTER] Button clicked, starting registration process');
 
     const email = document.getElementById('register-email').value.trim();
