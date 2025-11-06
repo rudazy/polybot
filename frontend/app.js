@@ -67,6 +67,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize event listeners
     setTimeout(initEventListeners, 100);
+
+    // Test that global functions are accessible
+    setTimeout(() => {
+        console.log('[TEST] window.handleRegister exists:', typeof window.handleRegister);
+        console.log('[TEST] window.handleLogin exists:', typeof window.handleLogin);
+
+        // Make test function available in console
+        window.testRegisterButton = function() {
+            console.log('[TEST] Testing register button click...');
+            showAuthModal();
+            switchTab('register');
+            setTimeout(() => {
+                const btn = document.getElementById('register-btn');
+                console.log('[TEST] Button found:', btn);
+                console.log('[TEST] Button onclick:', btn ? btn.onclick : 'N/A');
+                console.log('[TEST] Calling window.handleRegister directly...');
+                window.handleRegister();
+            }, 200);
+        };
+        console.log('[TEST] Run testRegisterButton() in console to test');
+    }, 500);
 });
 
 // ==================== LANDING PAGE ====================
@@ -1018,8 +1039,18 @@ function showApprovalSuccessModal(data) {
 // ==================== UI DISPLAY ====================
 
 function showAuthModal() {
+    console.log('[AUTH MODAL] Showing auth modal');
     document.getElementById('auth-modal').style.display = 'flex';
     document.getElementById('wallet-modal').style.display = 'none';
+
+    // Log button visibility after modal is shown
+    setTimeout(() => {
+        const registerBtn = document.getElementById('register-btn');
+        const registerForm = document.getElementById('register-form');
+        console.log('[AUTH MODAL] Register button element:', registerBtn);
+        console.log('[AUTH MODAL] Register form display:', registerForm ? registerForm.style.display : 'not found');
+        console.log('[AUTH MODAL] Register button visible:', registerBtn ? window.getComputedStyle(registerBtn).display : 'not found');
+    }, 100);
 }
 
 function hideAuthModal() {
@@ -1027,6 +1058,7 @@ function hideAuthModal() {
 }
 
 function switchTab(tab) {
+    console.log('[SWITCH TAB] Switching to:', tab);
     const loginTab = document.getElementById('login-tab');
     const registerTab = document.getElementById('register-tab');
     const loginForm = document.getElementById('login-form');
@@ -1037,12 +1069,21 @@ function switchTab(tab) {
         registerTab.classList.remove('active');
         loginForm.style.display = 'flex';
         registerForm.style.display = 'none';
+        console.log('[SWITCH TAB] Now showing login form');
     } else if (tab === 'register') {
         registerTab.classList.add('active');
         loginTab.classList.remove('active');
         registerForm.style.display = 'flex';
         loginForm.style.display = 'none';
+        console.log('[SWITCH TAB] Now showing register form');
     }
+
+    // Log button state after switch
+    setTimeout(() => {
+        const registerBtn = document.getElementById('register-btn');
+        console.log('[SWITCH TAB] Register button after switch:', registerBtn);
+        console.log('[SWITCH TAB] Register button display:', registerBtn ? window.getComputedStyle(registerBtn).display : 'not found');
+    }, 50);
 }
 
 function showWalletModal() {
