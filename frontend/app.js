@@ -1943,4 +1943,4 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-console.log('✅ App.js v2.2 - Cache-busted register button fix loaded successfully');
+console.log('✅ App.js v2.3 - Fixed input field visibility in dark mode');
