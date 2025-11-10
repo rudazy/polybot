@@ -355,52 +355,46 @@ window.handleLogin = async function() {
     }
 }
 
-window.handleRegister = async function() {
-    console.log('[REGISTER] Button clicked, starting registration process');
+window.handleRegister = async function(e) {
+    if (e) e.preventDefault();
+    console.log('=== REGISTER BUTTON CLICKED ===');
 
     const email = document.getElementById('register-email').value.trim();
     const password = document.getElementById('register-password').value;
-    const passwordConfirm = document.getElementById('register-password-confirm').value;
+    const confirmPassword = document.getElementById('register-password-confirm').value;
 
-    console.log('[REGISTER] Email:', email, 'Password length:', password.length);
+    console.log('Email:', email);
+    console.log('Password length:', password.length);
 
-    if (!email) {
-        alert('Please enter your email');
+    if (!email || !password || !confirmPassword) {
+        alert('Please fill in all fields');
         return;
     }
 
-    if (!password) {
-        alert('Please enter a password');
-        return;
-    }
-
-    if (password.length < 6) {
-        alert('Password must be at least 6 characters');
-        return;
-    }
-
-    if (password !== passwordConfirm) {
+    if (password !== confirmPassword) {
         alert('Passwords do not match');
         return;
     }
 
-    console.log('Attempting registration for:', email);
-
     try {
+        console.log('Sending registration request...');
         const response = await fetch(`${API_URL}/users/register`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({ email, password, wallet_address: null })
         });
 
+        console.log('Response status:', response.status);
         const data = await response.json();
-        console.log('Register response:', data);
+        console.log('Response data:', data);
 
-        if (data.success) {
+        if (response.ok && data.success) {
+            alert('Account created successfully! Logging you in...');
             currentUser = data.user;
             currentUserId = data.user.id;
             localStorage.setItem('polybot_user', JSON.stringify(data.user));
-            showNotification('Account created successfully!', 'success');
 
             // Hide landing page and show dashboard
             hideLandingPage();
@@ -418,11 +412,11 @@ window.handleRegister = async function() {
                 checkWalletAndProceed();
             }
         } else {
-            showNotification('Registration failed. ' + (data.message || 'Email may already exist.'), 'error');
+            alert(data.message || 'Registration failed');
         }
     } catch (error) {
         console.error('Registration error:', error);
-        showNotification('Registration failed. Please check API server.', 'error');
+        alert('Error creating account. Please try again.');
     }
 }
 
