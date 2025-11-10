@@ -356,8 +356,11 @@ window.handleLogin = async function() {
 }
 
 window.handleRegister = async function(e) {
-    if (e) e.preventDefault();
     console.log('=== REGISTER BUTTON CLICKED ===');
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
 
     const email = document.getElementById('register-email').value.trim();
     const password = document.getElementById('register-password').value;
@@ -378,7 +381,7 @@ window.handleRegister = async function(e) {
 
     try {
         console.log('Sending registration request...');
-        const response = await fetch(`${API_URL}/users/register`, {
+        const response = await fetch(`${API_URL}/register`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
