@@ -73,27 +73,45 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('[TEST] window.handleRegister exists:', typeof window.handleRegister);
         console.log('[TEST] window.handleLogin exists:', typeof window.handleLogin);
 
-        // Make test function available in console
-        window.testRegisterButton = function() {
-            console.log('[TEST] Testing register button click...');
-            showAuthModal();
-            switchTab('register');
-            setTimeout(() => {
-                const btn = document.getElementById('register-btn');
-                console.log('[TEST] Button found:', btn);
-                console.log('[TEST] Button onclick:', btn ? btn.onclick : 'N/A');
-                console.log('[TEST] Simulating click event...');
-                btn.click();
-                console.log('[TEST] After click simulation');
-            }, 200);
+        // Debug function to check input visibility
+        window.debugInputs = function() {
+            console.log('=== INPUT FIELD DEBUG ===');
+            const inputs = [
+                'register-email',
+                'register-password',
+                'register-password-confirm',
+                'login-email',
+                'login-password'
+            ];
+
+            inputs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    const styles = window.getComputedStyle(el);
+                    console.log(`\n${id}:`);
+                    console.log('  Element:', el);
+                    console.log('  Display:', styles.display);
+                    console.log('  Visibility:', styles.visibility);
+                    console.log('  Opacity:', styles.opacity);
+                    console.log('  Width:', styles.width);
+                    console.log('  Height:', styles.height);
+                    console.log('  Background:', styles.background);
+                    console.log('  Color:', styles.color);
+                    console.log('  Border:', styles.border);
+                } else {
+                    console.log(`${id}: NOT FOUND`);
+                }
+            });
+
+            const form = document.getElementById('register-form');
+            if (form) {
+                console.log('\nRegister Form:');
+                console.log('  Display:', window.getComputedStyle(form).display);
+                console.log('  Children:', form.children.length);
+            }
         };
 
-        window.testRegisterDirect = function() {
-            console.log('[TEST] Calling handleRegister directly...');
-            window.handleRegister();
-        };
-
-        console.log('[TEST] Run testRegisterButton() or testRegisterDirect() in console to test');
+        console.log('[TEST] Run debugInputs() in console to check input field styles');
     }, 500);
 });
 
@@ -1943,4 +1961,4 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-console.log('✅ App.js v2.3 - Fixed input field visibility in dark mode');
+console.log('✅ App.js v2.4 - Added input field debug tool');
