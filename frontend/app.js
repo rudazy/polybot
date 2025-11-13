@@ -40,10 +40,23 @@ function initializeApp() {
         }
     } else {
         showLanding();
+
+        // Check for URL fragment to open registration modal
+        checkURLFragment();
     }
 
     // Event Listeners
     setupEventListeners();
+}
+
+function checkURLFragment() {
+    const hash = window.location.hash;
+    if (hash === '#register') {
+        // Open registration modal
+        setTimeout(() => {
+            showModal('register-modal');
+        }, 100);
+    }
 }
 
 function setupEventListeners() {
@@ -52,6 +65,31 @@ function setupEventListeners() {
     document.getElementById('nav-register')?.addEventListener('click', () => showModal('register-modal'));
     document.getElementById('nav-logout')?.addEventListener('click', handleLogout);
     document.getElementById('hero-get-started')?.addEventListener('click', () => showModal('register-modal'));
+
+    // Modal close buttons
+    document.getElementById('close-login-modal')?.addEventListener('click', () => hideModal('login-modal'));
+    document.getElementById('close-register-modal')?.addEventListener('click', () => hideModal('register-modal'));
+
+    // Click outside modal to close
+    document.getElementById('login-modal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'login-modal') {
+            hideModal('login-modal');
+        }
+    });
+    document.getElementById('register-modal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'register-modal') {
+            hideModal('register-modal');
+        }
+    });
+
+    // Escape key to close modals
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal.active').forEach(modal => {
+                modal.classList.remove('active');
+            });
+        }
+    });
 
     // Brand/logo click - close any open modals
     document.querySelector('.nav-brand')?.addEventListener('click', () => {
