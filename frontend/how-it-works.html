@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How It Works - Polymarket Trading Bot</title>
+    <link rel="icon" type="image/png" href="https://polymarket.com/favicon.png">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .how-it-works-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: #fff;
+        }
+
+        .back-button {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: #3b82f6;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            transition: all 0.3s;
+        }
+
+        .back-button:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+        }
+
+        .section {
+            margin-bottom: 4rem;
+        }
+
+        .section h1 {
+            font-size: 2.5rem;
+            color: #1e293b;
+            margin-bottom: 1rem;
+            border-bottom: 3px solid #3b82f6;
+            padding-bottom: 0.5rem;
+        }
+
+        .section h2 {
+            font-size: 2rem;
+            color: #1e293b;
+            margin-bottom: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .section h3 {
+            font-size: 1.5rem;
+            color: #334155;
+            margin-bottom: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .section p {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #475569;
+            margin-bottom: 1rem;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .feature-card {
+            background: linear-gradient(135deg, #f0f4ff 0%, #e8eeff 100%);
+            padding: 2rem;
+            border-radius: 12px;
+            border: 2px solid #3b82f6;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.2);
+        }
+
+        .feature-card h4 {
+            font-size: 1.3rem;
+            color: #3b82f6;
+            margin-bottom: 1rem;
+        }
+
+        .feature-card p {
+            font-size: 1rem;
+            color: #475569;
+        }
+
+        .step-list {
+            background: #f8fafc;
+            padding: 2rem;
+            border-radius: 12px;
+            margin: 2rem 0;
+        }
+
+        .step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .step:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .step-number {
+            background: #3b82f6;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+            margin-right: 1.5rem;
+        }
+
+        .step-content h4 {
+            font-size: 1.2rem;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+
+        .step-content p {
+            font-size: 1rem;
+            color: #64748b;
+            margin: 0;
+        }
+
+        .highlight-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            border-radius: 8px;
+        }
+
+        .highlight-box h4 {
+            color: #856404;
+            margin-bottom: 0.5rem;
+        }
+
+        .highlight-box p {
+            color: #856404;
+            margin: 0;
+        }
+
+        .info-box {
+            background: #e8f4f8;
+            border-left: 4px solid #3b82f6;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            border-radius: 8px;
+        }
+
+        .info-box h4 {
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-box p {
+            color: #475569;
+            margin: 0;
+        }
+
+        .cta-section {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            padding: 3rem;
+            border-radius: 12px;
+            text-align: center;
+            margin: 3rem 0;
+        }
+
+        .cta-section h2 {
+            color: white;
+            margin-bottom: 1rem;
+        }
+
+        .cta-section p {
+            color: white;
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+        }
+
+        .cta-button {
+            display: inline-block;
+            padding: 1rem 3rem;
+            background: white;
+            color: #3b82f6;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(255, 255, 255, 0.3);
+        }
+
+        .faq-item {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s;
+        }
+
+        .faq-item:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .faq-question {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+
+        .faq-answer {
+            font-size: 1rem;
+            color: #64748b;
+            line-height: 1.6;
+        }
+
+        ul {
+            padding-left: 2rem;
+            margin: 1rem 0;
+        }
+
+        ul li {
+            font-size: 1.1rem;
+            color: #475569;
+            line-height: 1.8;
+            margin-bottom: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .how-it-works-container {
+                padding: 1rem;
+            }
+
+            .section h1 {
+                font-size: 2rem;
+            }
+
+            .section h2 {
+                font-size: 1.5rem;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="index.html" class="nav-brand" style="text-decoration: none; color: inherit; cursor: pointer;">Polymarket Bot</a>
+            <div class="nav-items">
+                <a href="index.html" class="btn-nav">Home</a>
+                <a href="index.html#register" class="btn-nav-primary">Sign Up</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="how-it-works-container">
+        <a href="index.html" class="back-button">← Back to Home</a>
+
+        <!-- Introduction -->
+        <section class="section">
+            <h1>How It Works</h1>
+            <p>
+                Welcome to the Polymarket Trading Bot - your automated trading assistant for prediction markets.
+                This guide will walk you through everything you need to know about using our platform.
+            </p>
+        </section>
+
+        <!-- What is Polymarket -->
+        <section class="section">
+            <h2>What is Polymarket?</h2>
+            <p>
+                Polymarket is the world's largest prediction market platform where you can trade on the outcome
+                of future events - from elections and sports to crypto prices and pop culture. Think of it as
+                betting on future events, but with real money and instant liquidity.
+            </p>
+            <p>
+                Unlike traditional betting sites, Polymarket uses blockchain technology (Polygon) and lets you
+                trade shares representing "YES" or "NO" outcomes. Prices reflect the crowd's prediction of
+                probability, ranging from $0.01 (very unlikely) to $0.99 (very likely).
+            </p>
+
+            <div class="info-box">
+                <h4>Example: Presidential Election</h4>
+                <p>
+                    If "Will X win the election?" trades at $0.65, the market thinks there's a 65% chance.
+                    You can buy "YES" shares at $0.65 and sell them at $1.00 if X wins, making $0.35 profit
+                    per share.
+                </p>
+            </div>
+        </section>
+
+        <!-- Features -->
+        <section class="section">
+            <h2>Key Features</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>Safe Wallet Creation</h4>
+                    <p>
+                        Automatically create a secure Safe Wallet when you sign up. Safe Wallets enable
+                        gasless transactions, meaning you don't need POL for every trade - only for USDC
+                        approval and withdrawals.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <h4>Manual Trading</h4>
+                    <p>
+                        Browse live sports, trending markets, or paste any Polymarket URL. Select YES or NO,
+                        enter your amount, and execute trades with one click.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <h4>Automated Bot Trading</h4>
+                    <p>
+                        Set criteria (category, probability threshold, amount) and let the bot find and execute
+                        trades automatically. Add stop-loss and take-profit for risk management.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <h4>Copy Trading</h4>
+                    <p>
+                        Follow successful traders automatically. When they make a trade, your bot makes the same
+                        trade (up to your max amount). Learn from the best!
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <h4>Live Sports Markets</h4>
+                    <p>
+                        Real-time sports betting markets with 3-way options (Home Win, Draw, Away Win). Perfect
+                        for soccer, basketball, and more.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <h4>Whale Alerts</h4>
+                    <p>
+                        Get notified when large traders (whales) make significant moves. See what the smart money
+                        is doing and follow their trades.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Getting Started -->
+        <section class="section">
+            <h2>Getting Started</h2>
+            <div class="step-list">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h4>Create Account</h4>
+                        <p>
+                            Sign up with your email and password. A Safe Wallet will be automatically created
+                            for you - no MetaMask needed!
+                        </p>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h4>Deposit Funds</h4>
+                        <p>
+                            Send POL (for gas fees) and USDC.e (for trading) to your wallet address shown in
+                            the dashboard. You need ~0.05 POL and any amount of USDC.e to start.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h4>Approve USDC.e</h4>
+                        <p>
+                            Click the green "Approve USDC.e" button in your wallet section. This is a one-time
+                            approval that allows the Polymarket Exchange to trade your USDC.e. Costs ~$0.01 in gas.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h4>Start Trading</h4>
+                        <p>
+                            Choose from manual trading, automated bot, or copy trading. Pick a market, select
+                            YES or NO, enter your amount, and execute!
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="highlight-box">
+                <h4>Important: Use USDC.e, NOT Native USDC</h4>
+                <p>
+                    Polymarket uses USDC.e (bridged USDC) on Polygon, not native USDC. Make sure you bridge
+                    or buy the correct token. The address is: 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
+                </p>
+            </div>
+        </section>
+
+        <!-- How Trading Works -->
+        <section class="section">
+            <h2>How Trading Works</h2>
+
+            <h3>Manual Trading</h3>
+            <p>
+                The simplest way to trade. Browse markets or paste a Polymarket URL, then:
+            </p>
+            <ul>
+                <li>Select YES (you think it will happen) or NO (you think it won't)</li>
+                <li>Enter amount in USDC.e</li>
+                <li>Optionally set stop-loss and take-profit</li>
+                <li>Click "Execute Trade"</li>
+            </ul>
+            <p>
+                The bot calculates how many shares you'll get based on current prices and executes the trade
+                on Polymarket Exchange.
+            </p>
+
+            <h3>Automated Bot Trading</h3>
+            <p>
+                Let the bot find and execute trades for you based on your criteria:
+            </p>
+            <ul>
+                <li><strong>Category:</strong> Crypto, Politics, Sports, etc.</li>
+                <li><strong>Probability Threshold:</strong> Only trade if market is above X% (e.g., 70%)</li>
+                <li><strong>Amount Per Trade:</strong> How much USDC.e to spend per trade</li>
+                <li><strong>Stop Loss:</strong> Exit if position drops by X%</li>
+                <li><strong>Take Profit:</strong> Exit if position gains X%</li>
+            </ul>
+            <p>
+                The bot scans markets continuously and executes trades that match your criteria. You can
+                stop it anytime.
+            </p>
+
+            <h3>Copy Trading</h3>
+            <p>
+                Follow successful traders automatically:
+            </p>
+            <ul>
+                <li>Browse top traders (shown with win rates and volumes)</li>
+                <li>Select a trader to copy</li>
+                <li>Set your max amount per trade</li>
+                <li>Start copy trading</li>
+            </ul>
+            <p>
+                When the trader you're following makes a trade, your bot makes the same trade (proportionally
+                to your amount limit). Great for beginners!
+            </p>
+        </section>
+
+        <!-- Wallet & Security -->
+        <section class="section">
+            <h2>Wallet & Security</h2>
+
+            <h3>Safe Wallet vs Regular Wallet</h3>
+            <p>
+                We use Safe Wallets (formerly Gnosis Safe) which offer several advantages:
+            </p>
+            <ul>
+                <li><strong>Gasless Trading:</strong> No POL needed for each trade</li>
+                <li><strong>Secure:</strong> Your private keys are encrypted in our database</li>
+                <li><strong>Exportable:</strong> You can export your wallet keys anytime</li>
+                <li><strong>Self-Custodial:</strong> You own the wallet, not us</li>
+            </ul>
+
+            <h3>What You Need</h3>
+            <ul>
+                <li><strong>POL (Polygon):</strong> ~0.05 POL for gas fees (USDC approval, withdrawals)</li>
+                <li><strong>USDC.e:</strong> Trading capital (start with $5-10 to test)</li>
+            </ul>
+
+            <h3>How to Get POL and USDC.e</h3>
+            <ul>
+                <li><strong>Buy POL:</strong> Coinbase, Binance, Kraken, etc.</li>
+                <li><strong>Bridge USDC:</strong> Use Polygon Bridge (wallet.polygon.technology/bridge)</li>
+                <li><strong>POL Faucet:</strong> faucet.polygon.technology (small amounts)</li>
+            </ul>
+
+            <div class="info-box">
+                <h4>Security Best Practices</h4>
+                <p>
+                    • Never share your private keys<br>
+                    • Export and backup your wallet keys<br>
+                    • Start with small amounts to test<br>
+                    • Enable 2FA if available<br>
+                    • Only deposit what you can afford to lose
+                </p>
+            </div>
+        </section>
+
+        <!-- Fees & Costs -->
+        <section class="section">
+            <h2>Fees & Costs</h2>
+
+            <h3>Platform Fees</h3>
+            <ul>
+                <li><strong>Account Creation:</strong> Free</li>
+                <li><strong>Wallet Creation:</strong> Free</li>
+                <li><strong>Trading:</strong> Free (no platform fees)</li>
+                <li><strong>Bot Trading:</strong> Free</li>
+                <li><strong>Copy Trading:</strong> Free</li>
+            </ul>
+
+            <h3>Blockchain Fees</h3>
+            <ul>
+                <li><strong>USDC Approval:</strong> ~$0.01 in POL (one-time)</li>
+                <li><strong>Withdrawals:</strong> ~$0.01-0.05 in POL per withdrawal</li>
+                <li><strong>Trading:</strong> $0 (gasless with Safe Wallet!)</li>
+            </ul>
+
+            <h3>Polymarket Fees</h3>
+            <ul>
+                <li><strong>Trading Fee:</strong> 2% on winning positions (charged by Polymarket)</li>
+                <li><strong>Market Spread:</strong> Varies by liquidity (like any exchange)</li>
+            </ul>
+
+            <div class="highlight-box">
+                <h4>Why Gasless Trading?</h4>
+                <p>
+                    Safe Wallets use a relayer that pays gas fees for you. This means you can trade without
+                    needing POL for every transaction. You only need POL for USDC approval and withdrawals!
+                </p>
+            </div>
+        </section>
+
+        <!-- FAQ -->
+        <section class="section">
+            <h2>Frequently Asked Questions</h2>
+
+            <div class="faq-item">
+                <div class="faq-question">What is USDC.e and why not native USDC?</div>
+                <div class="faq-answer">
+                    USDC.e is "bridged USDC" - USDC that was bridged from Ethereum to Polygon. Polymarket
+                    uses USDC.e, not native USDC. Make sure you're using the correct token
+                    (0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174).
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">Why do I need to approve USDC.e?</div>
+                <div class="faq-answer">
+                    This is a standard blockchain process. You're giving permission to the Polymarket Exchange
+                    smart contract to spend your USDC.e. This is safe and required for all DEX trading. You
+                    only do it once.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">Is unlimited approval safe?</div>
+                <div class="faq-answer">
+                    Yes! Unlimited approval is industry standard (used by Uniswap, etc.) and only applies to
+                    the specific smart contract (Polymarket Exchange). It can't access other tokens or accounts.
+                    You can revoke it anytime on Polygonscan.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">How do I withdraw my funds?</div>
+                <div class="faq-answer">
+                    Click "Withdraw Funds" in your wallet section. Select token (USDC.e or POL), enter recipient
+                    address and amount. For Safe Wallets, your owner address needs ~0.1 POL for gas fees.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">Can I use MetaMask instead?</div>
+                <div class="faq-answer">
+                    Yes! You can connect an external wallet (MetaMask, Rabby, etc.) but you'll need POL for
+                    every transaction. Safe Wallets offer gasless trading which is more convenient.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">What happens if the bot loses money?</div>
+                <div class="faq-answer">
+                    Prediction markets carry risk just like any trading. Use stop-loss orders to limit losses.
+                    Start small, test the bot, and never invest more than you can afford to lose. Past
+                    performance doesn't guarantee future results.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">How long do trades take to settle?</div>
+                <div class="faq-answer">
+                    Trades execute instantly. Markets settle when the event resolves (could be hours, days,
+                    or months depending on the market). You can sell your position anytime before settlement.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">Can I export my wallet?</div>
+                <div class="faq-answer">
+                    Yes! Click "Export Safe Wallet Keys" to get your owner private key. You can import this
+                    into MetaMask or any wallet to control your Safe Wallet externally.
+                </div>
+            </div>
+        </section>
+
+        <!-- Risks & Disclaimers -->
+        <section class="section">
+            <h2>Risks & Disclaimers</h2>
+            <div class="highlight-box">
+                <h4>Important: Please Read</h4>
+                <p>
+                    Trading prediction markets carries risk of loss. Do not trade with money you cannot afford
+                    to lose. This platform is provided "as is" without warranties. We are not financial advisors.
+                    Past performance does not guarantee future results. Bot trading can be profitable but also
+                    risky - use stop-loss orders and start small. You are responsible for your trading decisions.
+                </p>
+            </div>
+        </section>
+
+        <!-- CTA Section -->
+        <div class="cta-section">
+            <h2>Ready to Start Trading?</h2>
+            <p>Create your account and start trading on Polymarket in minutes!</p>
+            <a href="index.html#register" class="cta-button">Get Started Now</a>
+        </div>
+    </div>
+</body>
+</html>

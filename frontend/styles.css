@@ -36,6 +36,11 @@ body {
     font-size: 1.5rem;
     font-weight: 700;
     color: #1a73e8;
+    transition: opacity 0.2s;
+}
+
+.nav-brand:hover {
+    opacity: 0.8;
 }
 
 .nav-items {

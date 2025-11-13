@@ -52,9 +52,16 @@ function setupEventListeners() {
     document.getElementById('nav-register')?.addEventListener('click', () => showModal('register-modal'));
     document.getElementById('nav-logout')?.addEventListener('click', handleLogout);
     document.getElementById('hero-get-started')?.addEventListener('click', () => showModal('register-modal'));
-    document.getElementById('hero-learn-more')?.addEventListener('click', () => {
-        // Scroll to dashboard or show info
-        window.scrollTo({ top: 800, behavior: 'smooth' });
+
+    // Brand/logo click - close any open modals
+    document.querySelector('.nav-brand')?.addEventListener('click', () => {
+        // Close any open modals
+        document.querySelectorAll('.modal.active').forEach(modal => {
+            modal.classList.remove('active');
+        });
+
+        // Scroll to top for clean navigation
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
     // Modal Links
