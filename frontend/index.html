@@ -3,559 +3,424 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Polymarket Trading Bot - Automated Trading Dashboard</title>
+    <title>Polymarket Trading Bot - Automated Prediction Market Trading</title>
 
-    <!-- SEO Meta Tags -->
-    <meta name="description" content="Automated Polymarket trading bot with copy trading, whale alerts, and smart risk management. Trade prediction markets with confidence.">
-    <meta name="keywords" content="polymarket, trading bot, prediction markets, automated trading, copy trading">
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://polymarket.com/favicon.png">
+    <link rel="apple-touch-icon" href="https://polymarket.com/apple-touch-icon.png">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://polybot.finance/">
-    <meta property="og:title" content="Polymarket Trading Bot - Automated Trading Dashboard">
-    <meta property="og:description" content="Automated Polymarket trading bot with copy trading, whale alerts, and smart risk management.">
-    <meta property="og:image" content="https://polybot.finance/og-image.png">
+    <meta property="og:title" content="Polymarket Trading Bot - Automated Trading">
+    <meta property="og:description" content="AI-powered trading bot for Polymarket prediction markets. Trade automatically, copy top traders, and maximize your profits.">
+    <meta property="og:image" content="https://polymarket.com/images/og-image.png">
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="https://polybot.finance/">
-    <meta property="twitter:title" content="Polymarket Trading Bot - Automated Trading Dashboard">
-    <meta property="twitter:description" content="Automated Polymarket trading bot with copy trading, whale alerts, and smart risk management.">
-    <meta property="twitter:image" content="https://polybot.finance/og-image.png">
+    <meta property="twitter:title" content="Polymarket Trading Bot">
+    <meta property="twitter:description" content="AI-powered trading bot for Polymarket prediction markets">
+    <meta property="twitter:image" content="https://polymarket.com/images/og-image.png">
 
-    <link rel="stylesheet" href="styles.css?v=2.3">
-    <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Navigation Bar -->
+    <!-- Navigation -->
     <nav class="navbar">
         <div class="nav-container">
-            <div class="nav-left">
-                <h1 class="logo">
-                    Polymarket Bot
-                </h1>
-            </div>
-            <div class="nav-right">
-                <button class="theme-toggle" id="theme-toggle" title="Toggle theme">
-                    <span class="theme-icon" id="theme-icon">🌙</span>
-                </button>
-                <div class="points-display" id="points-display" style="display: none;">
-                    <span id="user-points">0</span> Points
+            <div class="nav-brand">Polymarket Bot</div>
+            <div class="nav-items">
+                <button id="nav-login" class="btn-nav" style="display: block;">Login</button>
+                <button id="nav-register" class="btn-nav-primary" style="display: block;">Sign Up</button>
+                <div id="user-menu" style="display: none;">
+                    <span id="user-email" class="user-email"></span>
+                    <button id="nav-logout" class="btn-nav">Logout</button>
                 </div>
-                <div class="wallet-badge" id="wallet-badge" style="display: none;">
-                    <span id="wallet-address">No Wallet</span>
-                </div>
-                <button class="btn-primary" id="login-register-btn">
-                    Login / Register
-                </button>
-                <button class="btn-disconnect" id="disconnect-btn" style="display: none;">
-                    Disconnect
-                </button>
             </div>
         </div>
     </nav>
 
-    <!-- Whale Activity Notifications -->
-    <div id="whale-notifications" class="whale-notifications-container"></div>
-
-    <!-- Landing Page (shows before login) -->
-    <div id="landing-page" style="display: block;">
+    <!-- Landing Page -->
+    <div id="landing" class="landing">
         <!-- Hero Section -->
         <section class="hero-section">
-            <div class="hero-container">
-                <div class="hero-content">
+            <div class="hero-content">
+                <div class="hero-left">
                     <h1 class="hero-title">
-                        Trade on <span class="gradient-text">Polymarket</span>
+                        Trade on <span class="hero-highlight">Polymarket</span>
                     </h1>
-                    <p class="hero-subtitle">
+                    <p class="hero-description">
                         Create account, deposit funds, start trading. Simple automated trading for prediction markets.
                     </p>
                     <div class="hero-buttons">
-                        <button class="btn-hero-primary" id="hero-get-started" onclick="window.location.href='register.html'">
-                            Get Started
-                        </button>
-                        <button class="btn-hero-secondary" id="hero-learn-more">
-                            Learn More
-                        </button>
+                        <button class="btn-hero-primary" id="hero-get-started">Get Started</button>
+                        <button class="btn-hero-secondary" id="hero-learn-more">Learn More</button>
                     </div>
                 </div>
-                <div class="hero-image">
-                    <div class="hero-card">
-                        <div class="hero-card-header">Your Wallet</div>
-                        <div class="hero-card-content">
-                            <div class="feature-check">Instant setup</div>
-                            <div class="feature-check">Automated trading</div>
-                            <div class="feature-check">Real-time alerts</div>
-                            <div class="feature-check">Easy to use</div>
+
+                <div class="hero-right">
+                    <div class="wallet-card">
+                        <h3 class="wallet-title">Your Wallet</h3>
+                        <div class="wallet-features">
+                            <div class="wallet-feature">Instant setup</div>
+                            <div class="wallet-feature">Automated trading</div>
+                            <div class="wallet-feature">Real-time alerts</div>
+                            <div class="wallet-feature">Easy to use</div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </section>
-
-        <!-- Features Section -->
-        <section class="features-section" id="features-section">
-            <div class="features-container">
-                <h2 class="section-title">Features</h2>
-                <div class="features-grid">
-                    <div class="feature-card">
-                        <h3>Automated Trading</h3>
-                        <p>Set your strategy and let the bot trade for you 24/7 based on market probabilities.</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>Copy Trading</h3>
-                        <p>Follow successful traders and automatically copy their trades in real-time.</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>Market Alerts</h3>
-                        <p>Get instant notifications when large trades happen and follow market movements.</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>Real-Time Analytics</h3>
-                        <p>Track your performance, win rate, and profits with detailed analytics.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- CTA Section -->
-        <section class="cta-section">
-            <div class="cta-container">
-                <h2>Ready to Start Trading?</h2>
-                <p>Create your account and start trading on Polymarket</p>
-                <button class="btn-cta" id="cta-get-started" onclick="window.location.href='register.html'">
-                    Create Account
-                </button>
             </div>
         </section>
     </div>
 
-    <!-- Main Container -->
-    <div class="container" style="display: none;">
-
-        <!-- Login/Register Modal -->
-        <div class="modal" id="auth-modal" style="display: none;">
-            <div class="modal-content auth-modal">
-                <button class="modal-close" id="close-auth-modal">×</button>
-                <h2>Welcome to Polymarket Bot</h2>
-                <p class="subtitle">Automated trading made simple</p>
-                
-                <div class="auth-tabs">
-                    <button class="auth-tab active" id="login-tab">Login</button>
-                    <button class="auth-tab" id="register-tab">Register</button>
-                </div>
-
-                <div id="login-form" class="auth-form">
-                    <input type="email" id="login-email" placeholder="Email" class="input-field">
-                    <input type="password" id="login-password" placeholder="Password" class="input-field">
-                    <button type="button" class="btn-primary" id="login-btn">Login</button>
-                    <a href="#" class="forgot-password-link" id="forgot-password-link">Forgot Password?</a>
-                </div>
-
-                <div id="register-form" class="auth-form" style="display: none;">
-                    <input type="email" id="register-email" placeholder="Email" class="input-field">
-                    <input type="password" id="register-password" placeholder="Create Password" class="input-field">
-                    <input type="password" id="register-password-confirm" placeholder="Confirm Password" class="input-field">
-                    <button type="button" class="btn-primary" id="register-btn">Create Account</button>
-                    <p class="trial-note">Free to use</p>
-                </div>
-            </div>
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal">
+        <div class="modal-content">
+            <h2>Login</h2>
+            <input type="email" id="login-email" placeholder="Email" />
+            <input type="password" id="login-password" placeholder="Password" />
+            <button id="login-submit" class="btn-primary">Login</button>
+            <p class="modal-footer">Don't have an account? <a href="#" id="show-register">Sign Up</a></p>
         </div>
+    </div>
 
-        <!-- Wallet Setup Modal -->
-        <div class="modal" id="wallet-modal" style="display: none;">
-            <div class="modal-content wallet-modal">
-                <h2>Setup Your Wallet</h2>
-                <p class="subtitle">Choose how you want to trade</p>
-
-                <div class="wallet-options">
-                    <div class="wallet-option wallet-option-recommended" id="quick-start-option">
-                        <div class="recommended-badge">RECOMMENDED</div>
-                        <h3>Create Wallet</h3>
-                        <p>We create a wallet for you</p>
-                        <ul class="option-features">
-                            <li>Instant setup in seconds</li>
-                            <li>No external wallet needed</li>
-                            <li>Export private key anytime</li>
-                            <li>Simple and easy</li>
-                        </ul>
-                        <button class="btn-primary btn-gasless" id="create-wallet-btn">
-                            Create Wallet
-                        </button>
-                    </div>
-
-                    <div class="wallet-option" id="connect-metamask-option">
-                        <h3>Connect Wallet</h3>
-                        <p>Use your own wallet</p>
-                        <ul class="option-features">
-                            <li>You control your keys</li>
-                            <li>More secure</li>
-                            <li>Standard Web3 practice</li>
-                            <li>Supports MetaMask</li>
-                        </ul>
-                        <button class="btn-primary" id="connect-metamask-btn">Connect Wallet</button>
-                    </div>
-                </div>
-
-                <p class="wallet-note">You can change this later in settings</p>
-            </div>
-        </div>
-
-        <!-- Forgot Password Modal -->
-        <div class="modal" id="forgot-password-modal" style="display: none;">
-            <div class="modal-content auth-modal">
-                <h2>Reset Password</h2>
-                <p class="subtitle">Enter your email and new password</p>
-
-                <div class="auth-form">
-                    <input type="email" id="reset-email" placeholder="Email" class="input-field">
-                    <input type="password" id="reset-new-password" placeholder="New Password" class="input-field">
-                    <input type="password" id="reset-confirm-password" placeholder="Confirm New Password" class="input-field">
-                    <div class="button-group" style="display: flex; gap: 1rem;">
-                        <button class="btn-primary" id="reset-password-btn">Reset Password</button>
-                        <button class="btn-secondary" id="cancel-reset-btn">Cancel</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Dashboard (hidden until login & wallet setup) -->
-        <div id="dashboard" style="display: none;">
-            
-            <!-- Wallet Info Banner -->
-            <div class="wallet-info-banner" id="wallet-info-banner">
-                <div class="wallet-info-section">
-                    <div class="wallet-header">
-                        <span class="wallet-type-badge" id="wallet-type-badge">Your Wallet</span>
-                    </div>
-                    <div class="wallet-address-section">
-                        <div class="wallet-address-label">Wallet Address:</div>
-                        <div class="wallet-address-copy-row">
-                            <span class="wallet-address-full" id="wallet-address-display">0x...</span>
-                            <button class="btn-copy-address" id="copy-address-btn" title="Copy address">
-                                Copy Address
-                            </button>
-                        </div>
-                    </div>
-                    <div class="deposit-instructions">
-                        <div class="deposit-label">Deposit USDC.e to this address</div>
-                        <div class="deposit-help">
-                            <span class="usdc-info">
-                                USDC.e (Polygon)
-                                <span class="tooltip">Info
-                                    <span class="tooltip-text">USDC.e is bridged USDC on Polygon network<br>Contract: 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174</span>
-                                </span>
-                            </span>
-                            <a href="https://wallet.polygon.technology/" target="_blank" rel="noopener noreferrer" class="bridge-link">
-                                Bridge from Ethereum
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                <div class="wallet-info-right">
-                    <div class="balance-item">
-                        <span class="balance-label">
-                            USDC.e
-                            <span class="tooltip-mini">Info
-                                <span class="tooltip-text-mini">Bridged USDC on Polygon</span>
-                            </span>
-                        </span>
-                        <span class="balance-value" id="usdc-balance">$0.00</span>
-                    </div>
-                    <div class="balance-item">
-                        <span class="balance-label">POL:</span>
-                        <span class="balance-value" id="matic-balance">0.00</span>
-                    </div>
-                    <button class="btn-small" id="refresh-balance-btn">Refresh</button>
-                    <button class="btn-small btn-danger-small" id="export-key-btn" style="display: none;">
-                        Export Key
-                    </button>
-                    <button class="btn-small btn-approve-usdc" id="approve-usdc-btn" style="display: none;" title="Approve USDC.e for trading">
-                        Approve USDC.e
-                    </button>
-                </div>
+    <!-- Register Modal -->
+    <div id="register-modal" class="modal">
+        <div class="modal-content modal-large">
+            <!-- Step 1: Account Info -->
+            <div id="register-step-1">
+                <h2>Create Account</h2>
+                <input type="email" id="register-email" placeholder="Email" />
+                <input type="password" id="register-password" placeholder="Password" />
+                <input type="password" id="register-confirm" placeholder="Confirm Password" />
+                <button id="register-next" class="btn-primary">Create Account with Safe Wallet</button>
+                <p class="modal-footer">Already have an account? <a href="#" id="show-login">Login</a></p>
             </div>
 
-            <!-- Top Stats Row -->
-            <div class="stats-row">
-                <div class="stat-card purple">
-                    <div class="stat-content">
-                        <h3 id="total-profit">$0.00</h3>
-                        <p>Total Profit</p>
-                    </div>
-                </div>
-                <div class="stat-card blue">
-                    <div class="stat-content">
-                        <h3 id="win-rate">0%</h3>
-                        <p>Win Rate</p>
-                    </div>
-                </div>
-                <div class="stat-card green">
-                    <div class="stat-content">
-                        <h3 id="total-trades">0</h3>
-                        <p>Total Trades</p>
-                    </div>
-                </div>
-                <div class="stat-card orange">
-                    <div class="stat-content">
-                        <h3 id="active-positions">0</h3>
-                        <p>Active Positions</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Main Content Grid -->
-            <div class="main-grid">
-                
-                <!-- Left Column -->
-                <div class="left-column">
-                    
-                    <!-- Bot Configuration -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h2>Bot Configuration</h2>
-                            <div class="bot-status" id="bot-status">
-                                <span class="status-dot offline"></span>
-                                <span>Offline</span>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div class="form-group">
-                                <label>Category Filter</label>
-                                <select id="category-filter" class="input-field">
-                                    <option value="all">All Categories</option>
-                                    <option value="politics">Politics</option>
-                                    <option value="crypto">Crypto</option>
-                                    <option value="sports">Sports</option>
-                                    <option value="finance">Finance</option>
-                                    <option value="entertainment">Entertainment</option>
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Minimum Probability: <span id="prob-value">70%</span></label>
-                                <input type="range" id="probability-slider" min="50" max="95" value="70" class="slider">
-                            </div>
-
-                            <div class="form-group">
-                                <label>Position Size ($)</label>
-                                <input type="number" id="position-size" value="100" class="input-field">
-                            </div>
-
-                            <div class="form-group">
-                                <label>Max Daily Trades</label>
-                                <input type="number" id="max-trades" value="10" class="input-field">
-                            </div>
-
-                            <div class="form-group">
-                                <label>Min Liquidity ($)</label>
-                                <input type="number" id="min-liquidity" value="10000" class="input-field" placeholder="10000" min="0" step="1000">
-                            </div>
-
-                            <div class="risk-management-section">
-                                <h3 class="section-title">Risk Management</h3>
-
-                                <div class="form-group">
-                                    <label>Stop Loss (%)</label>
-                                    <input type="number" id="stop-loss" value="10" class="input-field" placeholder="10" min="1" max="100" step="1">
-                                    <small class="field-hint">Auto-sell if loss reaches this percentage</small>
-                                </div>
-
-                                <div class="form-group">
-                                    <label>Take Profit (%)</label>
-                                    <input type="number" id="take-profit" value="20" class="input-field" placeholder="20" min="1" max="500" step="1">
-                                    <small class="field-hint">Auto-sell if profit reaches this percentage</small>
-                                </div>
-                            </div>
-
-                            <div class="button-group">
-                                <button class="btn-success" id="start-bot-btn">
-                                    Start Bot
-                                </button>
-                                <button class="btn-danger" id="stop-bot-btn" style="display: none;">
-                                    Stop Bot
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Manual Trading -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h2>Manual Trading</h2>
-                        </div>
-                        <div class="card-body">
-                            <div class="form-group">
-                                <label>Market Question</label>
-                                <input type="text" id="manual-market" placeholder="Enter market question..." class="input-field">
-                            </div>
-                            <div class="form-group">
-                                <label>Amount ($)</label>
-                                <input type="number" id="manual-amount" placeholder="100" class="input-field">
-                            </div>
-                            <div class="form-group">
-                                <label>Position</label>
-                                <select id="manual-position" class="input-field">
-                                    <option value="YES">YES</option>
-                                    <option value="NO">NO</option>
-                                </select>
-                            </div>
-                            <button class="btn-primary" id="execute-trade-btn">
-                                Execute Trade
-                            </button>
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- Right Column -->
-                <div class="right-column">
-                    
-                    <!-- Trending Markets -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h2>Trending Markets</h2>
-                            <button class="btn-refresh" id="refresh-markets-btn">Refresh</button>
-                        </div>
-                        <div class="card-body">
-                            <input type="text" id="market-search" placeholder="Search markets..." class="input-field search-input">
-                            <div id="markets-container" class="markets-list">
-                                <div class="loading">Loading markets...</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Top Traders -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h2>Top 5 Traders</h2>
-                            <button class="btn-refresh" id="refresh-traders-btn">Refresh</button>
-                        </div>
-                        <div class="card-body">
-                            <div id="top-traders-list" class="traders-list">
-                                <div class="loading">Loading top traders...</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Copy Trading -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h2>Copy Trading</h2>
-                        </div>
-                        <div class="card-body">
-                            <div class="copy-trade-info">
-                                <p class="info-text">Follow successful traders automatically</p>
-                            </div>
-                            <div class="form-group">
-                                <label>Paste Wallet Address to Copy</label>
-                                <input type="text" id="copy-wallet-input" class="input-field" placeholder="0x... (paste wallet address)">
-                                <small class="form-hint">Enter any wallet address you want to copy trade</small>
-                            </div>
-                            <div class="form-divider">
-                                <span>OR</span>
-                            </div>
-                            <div class="form-group">
-                                <label>Select from Top Traders</label>
-                                <select id="copy-trader-select" class="input-field">
-                                    <option value="">Choose a trader...</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Copy Amount per Trade ($)</label>
-                                <input type="number" id="copy-amount" value="50" class="input-field" placeholder="50">
-                            </div>
-                            <div class="form-group">
-                                <label>Max Copy Trades per Day</label>
-                                <input type="number" id="max-copy-trades" value="5" class="input-field" placeholder="5">
-                            </div>
-                            <div class="copy-trade-status" id="copy-trade-status" style="display: none;">
-                                <span class="status-dot offline"></span>
-                                <span>Copy Trading: Inactive</span>
-                            </div>
-                            <div class="button-group">
-                                <button class="btn-success" id="start-copy-btn">
-                                    Start Copy Trading
-                                </button>
-                                <button class="btn-danger" id="stop-copy-btn" style="display: none;">
-                                    Stop Copy Trading
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Recent Activity -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h2>Recent Activity</h2>
-                        </div>
-                        <div class="card-body">
-                            <div id="activity-feed" class="activity-list">
-                                <p class="no-data">No recent activity</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Points Rewards -->
-                    <div class="card points-card">
-                        <div class="card-header">
-                            <h2>Points Rewards</h2>
-                        </div>
-                        <div class="card-body">
-                            <div class="points-info">
-                                <div class="points-balance">
-                                    <h3 id="points-balance">0</h3>
-                                    <p>Points Available</p>
-                                </div>
-                                <p class="points-note">Earn 1 point per $1 traded</p>
-                            </div>
-                            <div class="rewards-list">
-                                <div class="reward-item">
-                                    <div class="reward-info">
-                                        <strong>1 Month Bonus</strong>
-                                        <span>10,000 points</span>
-                                    </div>
-                                    <button class="btn-redeem" data-points="10000" data-reward="1 Month Bonus">
-                                        Redeem
-                                    </button>
-                                </div>
-                                <div class="reward-item">
-                                    <div class="reward-info">
-                                        <strong>3 Months Bonus</strong>
-                                        <span>25,000 points</span>
-                                    </div>
-                                    <button class="btn-redeem" data-points="25000" data-reward="3 Months Bonus">
-                                        Redeem
-                                    </button>
-                                </div>
-                                <div class="reward-item">
-                                    <div class="reward-info">
-                                        <strong>1 Year Bonus</strong>
-                                        <span>100,000 points</span>
-                                    </div>
-                                    <button class="btn-redeem" data-points="100000" data-reward="1 Year Bonus">
-                                        Redeem
-                                    </button>
-                                </div>
-                                <div class="reward-item lifetime">
-                                    <div class="reward-info">
-                                        <strong>VIP Access</strong>
-                                        <span>500,000 points</span>
-                                    </div>
-                                    <button class="btn-redeem gold" data-points="500000" data-reward="VIP Access">
-                                        Redeem
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
+            <!-- Step 2: Creating Safe Wallet -->
+            <div id="register-step-2" style="display: none;">
+                <h2>Creating Your Safe Wallet</h2>
+                <p class="info-text">Setting up your gasless trading wallet...</p>
+                <div style="text-align: center; padding: 2rem;">
+                    <div class="spinner"></div>
+                    <p>Please wait while we create your Safe Wallet</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="app.js?v=2.4"></script>
+    <!-- Dashboard -->
+    <div id="dashboard" class="dashboard" style="display: none;">
+        <div class="container">
+
+            <!-- Trading Stats Section -->
+            <section class="card">
+                <h2>Trading Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <label>Total Volume Traded</label>
+                        <span id="total-volume" class="stat-value">$0.00</span>
+                    </div>
+                    <div class="stat-item">
+                        <label>Total Trades</label>
+                        <span id="total-trades" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <label>Win Rate</label>
+                        <span id="win-rate" class="stat-value">0%</span>
+                    </div>
+                    <div class="stat-item">
+                        <label>Total Profit</label>
+                        <span id="total-profit" class="stat-value">$0.00</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Wallet Section -->
+            <section class="card">
+                <h2>Your Wallet</h2>
+
+                <div class="wallet-info">
+                    <div class="wallet-item">
+                        <label>Wallet Address:</label>
+                        <div class="address-display">
+                            <span id="wallet-address">-</span>
+                            <button id="copy-address" class="btn-icon" title="Copy">Copy</button>
+                        </div>
+                    </div>
+                    <div class="wallet-item" id="owner-address-item" style="display: none;">
+                        <label>Owner Address:</label>
+                        <div class="address-display">
+                            <span id="owner-address">-</span>
+                            <button id="copy-owner-address" class="btn-icon" title="Copy">Copy</button>
+                        </div>
+                        <p style="font-size: 0.85rem; color: #666; margin-top: 0.3rem;">Send POL here for gas fees to withdraw</p>
+                    </div>
+                    <div class="wallet-item">
+                        <label>Wallet Type:</label>
+                        <span id="wallet-type">-</span>
+                    </div>
+                    <div class="wallet-item">
+                        <label>POL Balance:</label>
+                        <span id="pol-balance">0.00 POL</span>
+                    </div>
+                    <div class="wallet-item">
+                        <label>USDC.e Balance:</label>
+                        <span id="usdc-balance">0.00 USDC.e</span>
+                    </div>
+                    <div class="wallet-item">
+                        <label>Total Value:</label>
+                        <span id="total-balance">$0.00</span>
+                    </div>
+                </div>
+
+                <div class="wallet-actions">
+                    <button id="btn-send-funds" class="btn-primary">Withdraw Funds</button>
+                    <button id="btn-export-key" class="btn-secondary">Export Safe Wallet Keys</button>
+                    <button id="approve-usdc-btn" class="btn-approve" title="Approve USDC.e for trading on Polymarket">Approve USDC.e</button>
+                </div>
+            </section>
+
+            <!-- Send Funds Modal (hidden by default) -->
+            <div id="send-funds-section" class="card" style="display: none;">
+                <h3>Withdraw Funds</h3>
+                <p class="info-text">Withdraw USDC.e or POL from your Safe Wallet to another address</p>
+                <p class="warning-text" style="font-size: 0.9rem;">Note: Withdrawing from Safe Wallets requires your owner address to have ~0.1 POL for gas fees.</p>
+
+                <label class="form-label">Select Token</label>
+                <select id="send-token-type" class="input-field">
+                    <option value="usdc">USDC.e</option>
+                    <option value="pol">POL</option>
+                </select>
+
+                <label class="form-label">Recipient Address</label>
+                <input type="text" id="send-recipient" class="input-field" placeholder="0x..." />
+
+                <label class="form-label">Amount</label>
+                <input type="number" id="send-amount" class="input-field" placeholder="Amount to send" min="0" step="0.01" />
+
+                <div class="button-group">
+                    <button id="confirm-send" class="btn-primary">Withdraw</button>
+                    <button id="cancel-send" class="btn-secondary">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Live Sports Section -->
+            <section class="card">
+                <h2>Live Sports</h2>
+                <p class="info-text">Live sports markets - Soccer games have 3 options: Home Win, Draw, Away Win</p>
+                <div id="live-sports" class="markets-grid">
+                    <p class="loading-text">Loading live sports...</p>
+                </div>
+            </section>
+
+            <!-- Trending Markets Section -->
+            <section class="card">
+                <h2>Trending Markets</h2>
+                <p class="info-text">Click any market to load it into manual trading</p>
+
+                <div class="markets-controls">
+                    <input type="text" id="market-search" class="input-field" placeholder="Search markets..." style="margin-bottom: 0;"/>
+                    <select id="market-category" class="input-field" style="margin-bottom: 0;">
+                        <option value="">All Categories</option>
+                        <option value="crypto">Crypto</option>
+                        <option value="politics">Politics</option>
+                        <option value="sports">Sports</option>
+                        <option value="economics">Economics</option>
+                        <option value="pop-culture">Pop Culture</option>
+                        <option value="science">Science & Tech</option>
+                    </select>
+                    <button id="search-markets-btn" class="btn-primary">Search</button>
+                </div>
+
+                <div id="trending-markets" class="markets-grid">
+                    <p class="loading-text">Loading markets...</p>
+                </div>
+            </section>
+
+            <!-- Automated Bot Trading Section -->
+            <section class="card">
+                <h2>Automated Bot Trading</h2>
+                <p class="info-text">Set criteria and let the bot trade automatically for you</p>
+
+                <div class="bot-status-display">
+                    <label>Bot Status:</label>
+                    <span id="bot-status">Inactive</span>
+                    <span id="bot-stats" style="margin-left: 1rem; font-size: 0.9rem; color: #666;"></span>
+                </div>
+
+                <div class="bot-config-form">
+                    <h3>Bot Configuration</h3>
+
+                    <label class="form-label">Market Category</label>
+                    <select id="bot-category" class="input-field">
+                        <option value="">All Categories</option>
+                        <option value="crypto">Crypto</option>
+                        <option value="politics">Politics</option>
+                        <option value="sports">Sports</option>
+                        <option value="economics">Economics</option>
+                        <option value="pop-culture">Pop Culture</option>
+                        <option value="science">Science & Tech</option>
+                    </select>
+
+                    <label class="form-label">Minimum Probability (%)</label>
+                    <div class="probability-slider-container">
+                        <input type="range" id="bot-probability" min="50" max="95" value="70" class="probability-slider" />
+                        <span id="bot-probability-value" class="probability-value">70%</span>
+                    </div>
+                    <p class="input-hint">Bot will only trade on markets with probability above this threshold</p>
+
+                    <label class="form-label">Amount Per Trade (USDC.e)</label>
+                    <input type="number" id="bot-amount" class="input-field" placeholder="Amount (USDC.e)" min="1" step="0.01" />
+
+                    <div class="bot-advanced-options">
+                        <h4>Risk Management</h4>
+
+                        <label class="form-label">Stop Loss (%)</label>
+                        <input type="number" id="bot-stop-loss" class="input-field" placeholder="Stop Loss (%)" min="1" max="100" step="1" value="10" />
+
+                        <label class="form-label">Take Profit (%)</label>
+                        <input type="number" id="bot-take-profit" class="input-field" placeholder="Take Profit (%)" min="1" max="1000" step="1" value="20" />
+                    </div>
+
+                    <div class="button-group">
+                        <button id="start-bot" class="btn-primary btn-large">Start Bot Trading</button>
+                        <button id="stop-bot" class="btn-danger btn-large" style="display: none;">Stop Bot Trading</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Trading Section -->
+            <section class="card">
+                <h2>Manual Trading</h2>
+                <div class="trade-form">
+                    <div id="selected-market-display" style="display: none; margin-bottom: 1rem; padding: 1rem; background: #e8f4f8; border-radius: 8px;">
+                        <strong>Selected Market:</strong>
+                        <p id="selected-market-text" style="margin-top: 0.5rem;"></p>
+                    </div>
+
+                    <div style="margin-bottom: 1rem;">
+                        <label class="form-label">Quick Load Market</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" id="polymarket-url" class="input-field" placeholder="Paste Polymarket URL here..." style="flex: 1; margin-bottom: 0;" />
+                            <button id="load-from-url" class="btn-secondary" style="white-space: nowrap;">Load</button>
+                        </div>
+                        <p style="font-size: 0.85rem; color: #666; margin-top: 0.3rem;">Tip: Click any market from Live Sports, Trending, or Whale Alerts to trade instantly!</p>
+                    </div>
+
+                    <div class="position-buttons">
+                        <button id="position-yes" class="btn-position" data-position="YES">YES</button>
+                        <button id="position-no" class="btn-position" data-position="NO">NO</button>
+                    </div>
+
+                    <input type="number" id="trade-amount" class="input-field" placeholder="Amount (USDC.e)" min="1" step="0.01" />
+
+                    <div class="advanced-options">
+                        <h4>Advanced Options</h4>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="enable-stop-loss" />
+                            Enable Stop Loss
+                        </label>
+                        <input type="number" id="stop-loss" class="input-field" placeholder="Stop Loss (%)" min="1" max="100" step="1" disabled />
+
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="enable-take-profit" />
+                            Enable Take Profit
+                        </label>
+                        <input type="number" id="take-profit" class="input-field" placeholder="Take Profit (%)" min="1" max="1000" step="1" disabled />
+                    </div>
+
+                    <button id="execute-trade" class="btn-primary btn-large">Execute Trade</button>
+                </div>
+            </section>
+
+            <!-- Copy Trading Section -->
+            <section class="card">
+                <h2>Copy Trading</h2>
+                <p class="info-text">Automatically copy trades from successful traders</p>
+
+                <div class="copy-trade-status">
+                    <label>Status:</label>
+                    <span id="copy-status">Inactive</span>
+                </div>
+
+                <div class="trader-list">
+                    <h4>Top Traders</h4>
+                    <div id="top-traders">
+                        <p class="loading-text">Loading traders...</p>
+                    </div>
+                </div>
+
+                <div class="copy-trade-controls">
+                    <h4>Select from Top Traders</h4>
+                    <select id="trader-select" class="input-field">
+                        <option value="">Select a trader to copy...</option>
+                    </select>
+
+                    <h4 style="margin-top: 1.5rem;">Or Enter Custom Wallet</h4>
+                    <input type="text" id="custom-trader-address" class="input-field" placeholder="Paste wallet address (0x...)" />
+
+                    <h4 style="margin-top: 1.5rem;">Trade Settings</h4>
+                    <input type="number" id="copy-amount" class="input-field" placeholder="Max amount per trade (USDC.e)" min="1" step="0.01" />
+
+                    <button id="start-copy-trading" class="btn-primary">Start Copy Trading</button>
+                    <button id="stop-copy-trading" class="btn-danger" style="display: none;">Stop Copy Trading</button>
+                </div>
+            </section>
+
+            <!-- Active Trades Section -->
+            <section class="card">
+                <h2>Your Active Trades</h2>
+                <div id="active-trades">
+                    <p class="empty-state">No active trades yet</p>
+                </div>
+            </section>
+
+            <!-- Recent Activity -->
+            <section class="card">
+                <h2>Recent Activity</h2>
+                <div id="activity-feed">
+                    <p class="empty-state">No recent activity</p>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="notification" class="notification"></div>
+
+    <!-- Whale Alert -->
+    <div id="whale-alert" class="whale-alert" style="display: none;">
+        <div class="whale-alert-header">
+            <span class="whale-icon">WHALE</span>
+            <span class="whale-title">WHALE ALERT</span>
+            <button id="close-whale-alert" class="whale-close">×</button>
+        </div>
+        <div class="whale-alert-content">
+            <h4 id="whale-market-title"></h4>
+            <div class="whale-details">
+                <div class="whale-detail-item">
+                    <span class="whale-label">Amount:</span>
+                    <span id="whale-amount" class="whale-value"></span>
+                </div>
+                <div class="whale-detail-item">
+                    <span class="whale-label">Position:</span>
+                    <span id="whale-position" class="whale-value"></span>
+                </div>
+                <div class="whale-detail-item">
+                    <span class="whale-label">Time:</span>
+                    <span id="whale-time" class="whale-value"></span>
+                </div>
+            </div>
+            <div class="whale-actions">
+                <button id="whale-trade-btn" class="btn-whale-primary">Trade This Market</button>
+                <button id="whale-tweet-btn" class="btn-whale-secondary">Post to X</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
 </body>
 </html>

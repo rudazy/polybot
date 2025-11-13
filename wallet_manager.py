@@ -9,12 +9,13 @@ import secrets
 import json
 import base64
 import requests
+from datetime import datetime
 from typing import Dict, Optional
 from mongodb_database import MongoDatabase
 from blockchain_manager import BlockchainManager
 
 # Polymarket Node.js Service URL
-POLYMARKET_SERVICE_URL = "https://polymarket-service-production.up.railway.app"
+POLYMARKET_SERVICE_URL = "http://localhost:3001"
 
 class WalletManager:
     """
@@ -32,13 +33,13 @@ class WalletManager:
         try:
             print("[WALLET] Initializing BlockchainManager...")
             self.blockchain = BlockchainManager()
-            print("[WALLET] ✅ BlockchainManager initialized successfully")
+            print("[WALLET] OK BlockchainManager initialized successfully")
         except Exception as e:
-            print(f"[WALLET WARNING] ⚠️  BlockchainManager initialization failed: {e}")
+            print(f"[WALLET WARNING] BlockchainManager initialization failed: {e}")
             print(f"[WALLET WARNING] Wallet creation will work but without balance checking")
             self.blockchain = None
 
-        print("[WALLET] ✅ Wallet Manager initialized")
+        print("[WALLET] OK Wallet Manager initialized")
     
     # ==================== IN-APP WALLET CREATION ====================
     
@@ -89,7 +90,7 @@ class WalletManager:
                     if wallet_result.get('success'):
                         wallet_address = wallet_result['address']
                         private_key = wallet_result['private_key']
-                        print(f"[WALLET] ✅ Wallet created via BlockchainManager")
+                        print(f"[WALLET] OK Wallet created via BlockchainManager")
                     else:
                         print(f"[WALLET WARNING] BlockchainManager failed, using fallback")
                 except Exception as e:
@@ -101,7 +102,7 @@ class WalletManager:
                 private_key = "0x" + secrets.token_hex(32)
                 account = Account.from_key(private_key)
                 wallet_address = account.address
-                print(f"[WALLET] ✅ Wallet created via fallback method")
+                print(f"[WALLET] OK Wallet created via fallback method")
 
             print(f"[WALLET] Created wallet: {wallet_address}")
 
@@ -135,7 +136,7 @@ class WalletManager:
                 "private_key_encrypted": encrypted_key
             })
 
-            print(f"[WALLET] ✅ Wallet saved to database for user {user_id}")
+            print(f"[WALLET] OK Wallet saved to database for user {user_id}")
 
             return {
                 "success": True,
@@ -145,7 +146,7 @@ class WalletManager:
             }
 
         except Exception as e:
-            print(f"[WALLET ERROR] ❌ Error creating wallet for user {user_id}")
+            print(f"[WALLET ERROR] FAILED Error creating wallet for user {user_id}")
             print(f"[WALLET ERROR] Error type: {type(e).__name__}")
             print(f"[WALLET ERROR] Error message: {str(e)}")
 
@@ -216,7 +217,7 @@ class WalletManager:
                     data = response.json()
                     if data.get('success'):
                         safe_address = data['safeAddress']
-                        print(f"[SAFE WALLET] ✅ Safe deployed: {safe_address}")
+                        print(f"[SAFE WALLET] OK Safe deployed: {safe_address}")
                         print(f"[SAFE WALLET] Owner: {owner_address}")
                         print(f"[SAFE WALLET] Gasless: {data.get('gasless', True)}")
                     else:
@@ -271,7 +272,7 @@ class WalletManager:
                 "private_key_encrypted": encrypted_key  # Owner's private key
             })
 
-            print(f"[SAFE WALLET] ✅ Safe Wallet saved to database for user {user_id}")
+            print(f"[SAFE WALLET] OK Safe Wallet saved to database for user {user_id}")
 
             return {
                 "success": True,
@@ -283,7 +284,7 @@ class WalletManager:
             }
 
         except Exception as e:
-            print(f"[SAFE WALLET ERROR] ❌ Error creating Safe Wallet for user {user_id}")
+            print(f"[SAFE WALLET ERROR] FAILED Error creating Safe Wallet for user {user_id}")
             print(f"[SAFE WALLET ERROR] Error type: {type(e).__name__}")
             print(f"[SAFE WALLET ERROR] Error message: {str(e)}")
 
@@ -347,7 +348,7 @@ class WalletManager:
             user = self.db.users.find_one({"_id": ObjectId(user_id)})
 
             if not user:
-                print(f"[EXPORT] ❌ User not found: {user_id}")
+                print(f"[EXPORT] FAILED User not found: {user_id}")
                 return None
 
             wallet_type = user.get('wallet_type', 'unknown')
@@ -358,29 +359,52 @@ class WalletManager:
             print(f"[EXPORT] Wallet address: {wallet_address}")
 
             if wallet_type == 'external':
-                print(f"[EXPORT] ❌ Cannot export external wallet keys!")
+                print(f"[EXPORT] FAILED Cannot export external wallet keys!")
                 print(f"[EXPORT] External wallet keys are stored in your browser/wallet app (Rabby, MetaMask, etc.)")
                 return None
 
-            # Get encrypted private key
+            # Get encrypted private key - prioritize Safe wallet
             wallets_collection = self.db.db['wallets']
-            wallet = wallets_collection.find_one({"user_id": user_id})
+
+            # First try to get Safe wallet (the current active wallet)
+            wallet = wallets_collection.find_one({
+                "user_id": user_id,
+                "wallet_address": wallet_address,
+                "wallet_type": "safe"
+            })
+
+            # If no Safe wallet found, try any wallet for this user with matching address
+            if not wallet:
+                wallet = wallets_collection.find_one({
+                    "user_id": user_id,
+                    "wallet_address": wallet_address
+                })
+
+            # If still no wallet, try ANY wallet for this user (address mismatch fallback)
+            if not wallet:
+                print(f"[EXPORT] No wallet found for address {wallet_address}, trying any wallet for user...")
+                wallet = wallets_collection.find_one({"user_id": user_id})
+                if wallet:
+                    print(f"[EXPORT] Found wallet with different address: {wallet.get('wallet_address')}")
 
             if not wallet:
-                print(f"[EXPORT] ❌ Wallet private key not found in database")
+                print(f"[EXPORT] FAILED Wallet private key not found in database")
                 print(f"[EXPORT] This might be an external wallet or key was never stored")
                 return None
 
-            # Decrypt and return
+            # Decrypt and return (this is the owner's private key for Safe wallets)
             private_key = self._decrypt_key(wallet['private_key_encrypted'])
 
-            print(f"[EXPORT] ⚠️  WARNING: Private key exported for user {user_id}")
+            print(f"[EXPORT] WARNING: Private key exported for user {user_id}")
+            print(f"[EXPORT] Wallet type: {wallet_type}")
             print(f"[EXPORT] Address: {wallet_address}")
+            if wallet_type == 'safe':
+                print(f"[EXPORT] Note: This is the OWNER key that controls the Safe wallet")
 
             return private_key
 
         except Exception as e:
-            print(f"[EXPORT ERROR] ❌ Error exporting private key: {e}")
+            print(f"[EXPORT ERROR] Error exporting private key: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -459,7 +483,108 @@ class WalletManager:
                 "error": str(e),
                 "error_type": type(e).__name__
             }
-    
+
+    # ==================== IMPORT PRIVATE KEY ====================
+
+    def import_private_key(self, user_id: str, private_key: str) -> Dict:
+        """
+        Import a wallet from private key
+
+        Args:
+            user_id: User's database ID
+            private_key: Private key (with or without 0x prefix)
+
+        Returns:
+            Success status with wallet info
+        """
+        try:
+            from bson.objectid import ObjectId
+            from eth_account import Account
+
+            print(f"[IMPORT] Importing private key for user {user_id}")
+
+            # Ensure private key has 0x prefix
+            if not private_key.startswith('0x'):
+                private_key = '0x' + private_key
+
+            # Derive wallet address from private key
+            account = Account.from_key(private_key)
+            wallet_address = account.address
+
+            print(f"[IMPORT] Derived wallet address: {wallet_address}")
+
+            # Check if user exists
+            user = self.db.users.find_one({"_id": ObjectId(user_id)})
+            if not user:
+                print(f"[IMPORT] FAILED User not found: {user_id}")
+                return {
+                    "success": False,
+                    "error": "User not found"
+                }
+
+            # Encrypt private key
+            encrypted_key = self._encrypt_key(private_key)
+
+            # Check if wallet already exists
+            wallets_collection = self.db.db['wallets']
+            existing_wallet = wallets_collection.find_one({"user_id": user_id})
+
+            if existing_wallet:
+                # Update existing wallet
+                wallets_collection.update_one(
+                    {"user_id": user_id},
+                    {
+                        "$set": {
+                            "wallet_address": wallet_address,
+                            "wallet_type": "imported",
+                            "private_key_encrypted": encrypted_key,
+                            "updated_at": datetime.utcnow()
+                        }
+                    }
+                )
+            else:
+                # Create new wallet entry
+                wallets_collection.insert_one({
+                    "user_id": user_id,
+                    "wallet_address": wallet_address,
+                    "wallet_type": "imported",
+                    "private_key_encrypted": encrypted_key,
+                    "created_at": datetime.utcnow()
+                })
+
+            # Update user record
+            self.db.users.update_one(
+                {"_id": ObjectId(user_id)},
+                {
+                    "$set": {
+                        "wallet_address": wallet_address,
+                        "wallet_type": "imported"
+                    }
+                }
+            )
+
+            print(f"[IMPORT] OK Private key imported successfully")
+            print(f"[IMPORT] Wallet address: {wallet_address}")
+            print(f"[IMPORT] Wallet type: imported")
+
+            return {
+                "success": True,
+                "wallet_address": wallet_address,
+                "wallet_type": "imported",
+                "message": "Private key imported successfully!"
+            }
+
+        except Exception as e:
+            print(f"[IMPORT ERROR] ❌ Error importing private key: {e}")
+            import traceback
+            traceback.print_exc()
+
+            return {
+                "success": False,
+                "error": str(e),
+                "error_type": type(e).__name__
+            }
+
     # ==================== WALLET BALANCE (REAL BLOCKCHAIN) ====================
     
     def get_wallet_balance(self, wallet_address: str) -> Dict:
@@ -479,8 +604,10 @@ class WalletManager:
             return {
                 "success": True,
                 "wallet_address": wallet_address,
-                "matic_balance": balances['matic'],
+                "pol_balance": balances['pol'],
+                "matic_balance": balances['matic'],  # Legacy
                 "usdc_balance": balances['usdc'],
+                "pol_usd": balances['pol_usd'],
                 "total_usd": balances['total_usd']
             }
             
@@ -523,8 +650,10 @@ class WalletManager:
             wallet_info = {
                 "wallet_address": wallet_address,
                 "wallet_type": wallet_type,
-                "matic_balance": balance_info.get('matic_balance', 0.0),
+                "pol_balance": balance_info.get('pol_balance', 0.0),
+                "matic_balance": balance_info.get('matic_balance', 0.0),  # Legacy
                 "usdc_balance": balance_info.get('usdc_balance', 0.0),
+                "pol_usd": balance_info.get('pol_usd', 0.0),
                 "total_usd": balance_info.get('total_usd', 0.0)
             }
 

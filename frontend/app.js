@@ -1,329 +1,267 @@
 /**
- * Polymarket Trading Bot - Frontend JavaScript with Wallet Integration & Private Key Export
+ * Polymarket Trading Bot - Enhanced Frontend
  */
 
-// API Base URL - Auto-detect environment
-const API_URL = 'https://polymarket-bot-api-production.up.railway.app';
+// Use Railway production API or localhost for development
+const API_URL = window.location.hostname === 'localhost'
+    ? 'http://localhost:8000'
+    : 'https://polymarket-bot-api-production.up.railway.app';
 
-// Global state
+// Global State
 let currentUser = null;
 let currentUserId = null;
-let hasWallet = false;
-let currentNetwork = 'testnet'; // Default to testnet for safety
-let copyTradingActive = false;
+let selectedPosition = null;
+let selectedMarket = null;
+let selectedMarketData = null; // Store full market data including question
+let registrationData = {}; // Stores email/password during registration wizard
+let cachedMarkets = []; // Cache markets for trending display
+let fullWalletAddress = null; // Store full wallet address for copying
+let fullOwnerAddress = null; // Store full owner address for Safe wallets
 
-// ==================== THEME MANAGEMENT ====================
-
-function initTheme() {
-    // Load saved theme or default to light
-    const savedTheme = localStorage.getItem('polybot_theme') || 'light';
-    setTheme(savedTheme);
-
-    // Add theme toggle event listener
-    const themeToggle = document.getElementById('theme-toggle');
-    if (themeToggle) {
-        themeToggle.addEventListener('click', toggleTheme);
-    }
-}
-
-function setTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('polybot_theme', theme);
-
-    // Update icon
-    const themeIcon = document.getElementById('theme-icon');
-    if (themeIcon) {
-        themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
-    }
-}
-
-function toggleTheme() {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-}
-
-// ==================== INITIALIZATION ====================
+//==================== INITIALIZATION ====================
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 Polymarket Bot Dashboard Initialized');
-
-    // Initialize theme
-    initTheme();
-
-    // Check if user is logged in
-    const savedUser = localStorage.getItem('polybot_user');
-    if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-        currentUserId = currentUser.id;
-        // Hide landing page, show dashboard
-        document.getElementById('landing-page').style.display = 'none';
-        document.querySelector('.container').style.display = 'block';
-        checkWalletAndProceed();
-    } else {
-        // Show landing page (not logged in)
-        showLandingPage();
-    }
-
-    // Initialize event listeners
-    setTimeout(initEventListeners, 100);
-
-    // Test that global functions are accessible
-    setTimeout(() => {
-        console.log('[TEST] window.handleRegister exists:', typeof window.handleRegister);
-        console.log('[TEST] window.handleLogin exists:', typeof window.handleLogin);
-
-        // Debug function to check input visibility
-        window.debugInputs = function() {
-            console.log('=== INPUT FIELD DEBUG ===');
-            const inputs = [
-                'register-email',
-                'register-password',
-                'register-password-confirm',
-                'login-email',
-                'login-password'
-            ];
-
-            inputs.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    const styles = window.getComputedStyle(el);
-                    console.log(`\n${id}:`);
-                    console.log('  Element:', el);
-                    console.log('  Display:', styles.display);
-                    console.log('  Visibility:', styles.visibility);
-                    console.log('  Opacity:', styles.opacity);
-                    console.log('  Width:', styles.width);
-                    console.log('  Height:', styles.height);
-                    console.log('  Background:', styles.background);
-                    console.log('  Color:', styles.color);
-                    console.log('  Border:', styles.border);
-                } else {
-                    console.log(`${id}: NOT FOUND`);
-                }
-            });
-
-            const form = document.getElementById('register-form');
-            if (form) {
-                console.log('\nRegister Form:');
-                console.log('  Display:', window.getComputedStyle(form).display);
-                console.log('  Children:', form.children.length);
-            }
-        };
-
-        console.log('[TEST] Run debugInputs() in console to check input field styles');
-    }, 500);
+    console.log('Polymarket Bot Initialized');
+    initializeApp();
 });
 
-// ==================== LANDING PAGE ====================
+function initializeApp() {
+    // Check if user is logged in
+    const storedUser = localStorage.getItem('polybot_user');
+    if (storedUser) {
+        try {
+            currentUser = JSON.parse(storedUser);
+            currentUserId = currentUser._id || currentUser.id;
+            showDashboard();
+        } catch (e) {
+            console.error('Invalid stored user data');
+            localStorage.removeItem('polybot_user');
+            showLanding();
+        }
+    } else {
+        showLanding();
+    }
 
-function showLandingPage() {
-    document.getElementById('landing-page').style.display = 'block';
-    document.querySelector('.container').style.display = 'none';
-    document.querySelector('.navbar').style.display = 'flex';
+    // Event Listeners
+    setupEventListeners();
 }
 
-function hideLandingPage() {
-    document.getElementById('landing-page').style.display = 'none';
-    document.querySelector('.container').style.display = 'block';
-}
-
-// ==================== EVENT LISTENERS ====================
-
-function initEventListeners() {
-    console.log('Initializing event listeners...');
-
-    // Landing Page CTAs
-    const heroGetStarted = document.getElementById('hero-get-started');
-    if (heroGetStarted) {
-        heroGetStarted.addEventListener('click', () => {
-            showAuthModal();
-            switchTab('register');
-        });
-    }
-
-    const heroLearnMore = document.getElementById('hero-learn-more');
-    if (heroLearnMore) {
-        heroLearnMore.addEventListener('click', () => {
-            document.getElementById('features-section').scrollIntoView({ behavior: 'smooth' });
-        });
-    }
-
-    const ctaGetStarted = document.getElementById('cta-get-started');
-    if (ctaGetStarted) {
-        ctaGetStarted.addEventListener('click', () => {
-            showAuthModal();
-            switchTab('register');
-        });
-    }
-
-    // Wallet Copy Address
-    const copyAddressBtn = document.getElementById('copy-address-btn');
-    if (copyAddressBtn) {
-        copyAddressBtn.addEventListener('click', copyWalletAddress);
-    }
-
-    // Auth tabs
-    const loginTab = document.getElementById('login-tab');
-    const registerTab = document.getElementById('register-tab');
-    const loginForm = document.getElementById('login-form');
-    const registerForm = document.getElementById('register-form');
-    
-    if (loginTab) {
-        loginTab.addEventListener('click', function() {
-            loginTab.classList.add('active');
-            registerTab.classList.remove('active');
-            loginForm.style.display = 'flex';
-            registerForm.style.display = 'none';
-        });
-    }
-    
-    if (registerTab) {
-        registerTab.addEventListener('click', function() {
-            registerTab.classList.add('active');
-            loginTab.classList.remove('active');
-            registerForm.style.display = 'flex';
-            loginForm.style.display = 'none';
-        });
-    }
-    
-    // Auth actions
-    const loginBtn = document.getElementById('login-btn');
-    const registerBtn = document.getElementById('register-btn');
-    const disconnectBtn = document.getElementById('disconnect-btn');
-    const loginRegisterBtn = document.getElementById('login-register-btn');
-    const closeAuthModal = document.getElementById('close-auth-modal');
-    const forgotPasswordLink = document.getElementById('forgot-password-link');
-    const resetPasswordBtn = document.getElementById('reset-password-btn');
-    const cancelResetBtn = document.getElementById('cancel-reset-btn');
-
-    // Set event listeners (addEventListener doesn't override inline handlers)
-    if (loginBtn) {
-        console.log('[EVENT] Login button found, adding event listener');
-        loginBtn.addEventListener('click', function(e) {
-            console.log('[CLICK] Login button clicked!');
-            e.preventDefault();
-            e.stopPropagation();
-            window.handleLogin();
-        });
-    } else {
-        console.error('[EVENT] Login button NOT found!');
-    }
-
-    if (registerBtn) {
-        console.log('[EVENT] Register button found, adding event listener');
-        registerBtn.addEventListener('click', function(e) {
-            console.log('[CLICK] Register button clicked!');
-            e.preventDefault();
-            e.stopPropagation();
-            window.handleRegister();
-        });
-    } else {
-        console.error('[EVENT] Register button NOT found!');
-    }
-    if (disconnectBtn) disconnectBtn.addEventListener('click', handleDisconnect);
-    if (loginRegisterBtn) {
-        loginRegisterBtn.addEventListener('click', () => {
-            showAuthModal();
-            switchTab('login');
-        });
-    }
-    if (closeAuthModal) closeAuthModal.addEventListener('click', hideAuthModal);
-    if (forgotPasswordLink) forgotPasswordLink.addEventListener('click', showForgotPasswordModal);
-    if (resetPasswordBtn) resetPasswordBtn.addEventListener('click', handlePasswordReset);
-    if (cancelResetBtn) cancelResetBtn.addEventListener('click', hideForgotPasswordModal);
-
-    // Close modal when clicking outside
-    const authModal = document.getElementById('auth-modal');
-    if (authModal) {
-        authModal.addEventListener('click', (e) => {
-            if (e.target === authModal) {
-                hideAuthModal();
-            }
-        });
-    }
-    
-    // Wallet actions
-    const createWalletBtn = document.getElementById('create-wallet-btn');
-    const connectMetaMaskBtn = document.getElementById('connect-metamask-btn');
-    const refreshBalanceBtn = document.getElementById('refresh-balance-btn');
-    const exportKeyBtn = document.getElementById('export-key-btn');
-    const approveUsdcBtn = document.getElementById('approve-usdc-btn');
-
-    if (createWalletBtn) createWalletBtn.addEventListener('click', handleCreateInAppWallet);
-    if (connectMetaMaskBtn) connectMetaMaskBtn.addEventListener('click', handleConnectMetaMask);
-    if (refreshBalanceBtn) refreshBalanceBtn.addEventListener('click', loadWalletBalance);
-    if (exportKeyBtn) exportKeyBtn.addEventListener('click', handleExportPrivateKey);
-    if (approveUsdcBtn) approveUsdcBtn.addEventListener('click', handleApproveUSDC);
-    
-    // Bot controls
-    const startBtn = document.getElementById('start-bot-btn');
-    const stopBtn = document.getElementById('stop-bot-btn');
-    if (startBtn) startBtn.addEventListener('click', startBot);
-    if (stopBtn) stopBtn.addEventListener('click', stopBot);
-    
-    // Manual trading
-    const executeBtn = document.getElementById('execute-trade-btn');
-    if (executeBtn) executeBtn.addEventListener('click', executeManualTrade);
-    
-    // Markets
-    const refreshBtn = document.getElementById('refresh-markets-btn');
-    const searchInput = document.getElementById('market-search');
-    if (refreshBtn) refreshBtn.addEventListener('click', loadMarkets);
-    if (searchInput) searchInput.addEventListener('input', handleMarketSearch);
-
-    // Network switcher
-    const networkToggleBtn = document.getElementById('network-toggle-btn');
-    if (networkToggleBtn) networkToggleBtn.addEventListener('click', handleNetworkSwitch);
-
-    // Top traders
-    const refreshTradersBtn = document.getElementById('refresh-traders-btn');
-    if (refreshTradersBtn) refreshTradersBtn.addEventListener('click', loadTopTraders);
-
-    // Copy trading
-    const startCopyBtn = document.getElementById('start-copy-btn');
-    const stopCopyBtn = document.getElementById('stop-copy-btn');
-    if (startCopyBtn) startCopyBtn.addEventListener('click', startCopyTrading);
-    if (stopCopyBtn) stopCopyBtn.addEventListener('click', stopCopyTrading);
-    
-    // Probability slider
-    const probSlider = document.getElementById('probability-slider');
-    if (probSlider) {
-        probSlider.addEventListener('input', (e) => {
-            document.getElementById('prob-value').textContent = e.target.value + '%';
-        });
-    }
-    
-    // Points redemption
-    document.querySelectorAll('.btn-redeem').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const points = parseInt(btn.dataset.points);
-            const reward = btn.dataset.reward;
-            redeemPoints(points, reward);
-        });
+function setupEventListeners() {
+    // Navigation
+    document.getElementById('nav-login')?.addEventListener('click', () => showModal('login-modal'));
+    document.getElementById('nav-register')?.addEventListener('click', () => showModal('register-modal'));
+    document.getElementById('nav-logout')?.addEventListener('click', handleLogout);
+    document.getElementById('hero-get-started')?.addEventListener('click', () => showModal('register-modal'));
+    document.getElementById('hero-learn-more')?.addEventListener('click', () => {
+        // Scroll to dashboard or show info
+        window.scrollTo({ top: 800, behavior: 'smooth' });
     });
-    
-    console.log('✅ Event listeners initialized');
+
+    // Modal Links
+    document.getElementById('show-register')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        hideModal('login-modal');
+        showModal('register-modal');
+    });
+
+    document.getElementById('show-login')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        hideModal('register-modal');
+        showModal('login-modal');
+    });
+
+    // Auth Forms
+    document.getElementById('login-submit')?.addEventListener('click', handleLogin);
+
+    // Registration - Auto create Safe wallet
+    document.getElementById('register-next')?.addEventListener('click', handleRegisterNext);
+
+    // Wallet Actions
+    document.getElementById('btn-send-funds')?.addEventListener('click', () => {
+        document.getElementById('send-funds-section').style.display = 'block';
+    });
+    document.getElementById('btn-export-key')?.addEventListener('click', exportSafeWalletKeys);
+    document.getElementById('copy-address')?.addEventListener('click', copyWalletAddress);
+    document.getElementById('copy-owner-address')?.addEventListener('click', copyOwnerAddress);
+    document.getElementById('approve-usdc-btn')?.addEventListener('click', handleApproveUSDC);
+
+    // Withdraw Funds Actions
+    document.getElementById('confirm-send')?.addEventListener('click', sendFunds);
+    document.getElementById('cancel-send')?.addEventListener('click', () => {
+        document.getElementById('send-funds-section').style.display = 'none';
+        document.getElementById('send-recipient').value = '';
+        document.getElementById('send-amount').value = '';
+    });
+
+    // Trading
+    document.getElementById('position-yes')?.addEventListener('click', () => selectPosition('YES'));
+    document.getElementById('position-no')?.addEventListener('click', () => selectPosition('NO'));
+    document.getElementById('execute-trade')?.addEventListener('click', executeTrade);
+    document.getElementById('load-from-url')?.addEventListener('click', loadMarketFromURL);
+
+    // Advanced Options Toggles
+    document.getElementById('enable-stop-loss')?.addEventListener('change', (e) => {
+        document.getElementById('stop-loss').disabled = !e.target.checked;
+    });
+    document.getElementById('enable-take-profit')?.addEventListener('change', (e) => {
+        document.getElementById('take-profit').disabled = !e.target.checked;
+    });
+
+    // Copy Trading - handle both select and custom input
+    document.getElementById('trader-select')?.addEventListener('change', (e) => {
+        if (e.target.value) {
+            document.getElementById('custom-trader-address').value = '';
+        }
+    });
+    document.getElementById('custom-trader-address')?.addEventListener('input', (e) => {
+        if (e.target.value) {
+            document.getElementById('trader-select').value = '';
+        }
+    });
+    document.getElementById('start-copy-trading')?.addEventListener('click', startCopyTrading);
+    document.getElementById('stop-copy-trading')?.addEventListener('click', stopCopyTrading);
+
+    // Market Search & Filter
+    document.getElementById('search-markets-btn')?.addEventListener('click', searchMarkets);
+    document.getElementById('market-search')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') searchMarkets();
+    });
+
+    // Bot Trading
+    document.getElementById('bot-probability')?.addEventListener('input', (e) => {
+        document.getElementById('bot-probability-value').textContent = e.target.value + '%';
+    });
+    document.getElementById('start-bot')?.addEventListener('click', startBotTrading);
+    document.getElementById('stop-bot')?.addEventListener('click', stopBotTrading);
 }
 
-// ==================== AUTHENTICATION ====================
+//==================== UI FUNCTIONS ====================
 
-// Make functions globally accessible for inline onclick handlers
-window.handleLogin = async function() {
+function showLanding() {
+    document.getElementById('landing').style.display = 'flex';
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('nav-login').style.display = 'block';
+    document.getElementById('nav-register').style.display = 'block';
+    document.getElementById('user-menu').style.display = 'none';
+}
+
+function showDashboard() {
+    document.getElementById('landing').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    document.getElementById('nav-login').style.display = 'none';
+    document.getElementById('nav-register').style.display = 'none';
+    document.getElementById('user-menu').style.display = 'flex';
+
+    if (currentUser) {
+        document.getElementById('user-email').textContent = currentUser.email;
+        loadDashboardData();
+
+        // Initialize whale alerts
+        if (!whaleInterval) {
+            initializeWhaleAlerts();
+        }
+    }
+}
+
+function showModal(modalId) {
+    document.getElementById(modalId).classList.add('active');
+    // Reset registration wizard when opening register modal
+    if (modalId === 'register-modal') {
+        document.getElementById('register-step-1').style.display = 'block';
+        document.getElementById('register-step-2').style.display = 'none';
+    }
+}
+
+function hideModal(modalId) {
+    document.getElementById(modalId).classList.remove('active');
+}
+
+function showNotification(message, type = 'info') {
+    const notification = document.getElementById('notification');
+    notification.textContent = message;
+    notification.className = `notification show ${type}`;
+
+    setTimeout(() => {
+        notification.classList.remove('show');
+    }, 3000);
+}
+
+//==================== AUTHENTICATION ====================
+
+async function handleRegisterNext() {
+    const email = document.getElementById('register-email').value.trim();
+    const password = document.getElementById('register-password').value;
+    const confirmPassword = document.getElementById('register-confirm').value;
+
+    if (!email || !password) {
+        showNotification('Please fill in all fields', 'error');
+        return;
+    }
+
+    if (password !== confirmPassword) {
+        showNotification('Passwords do not match', 'error');
+        return;
+    }
+
+    // Store credentials
+    registrationData = { email, password };
+
+    // Show creating wallet step
+    document.getElementById('register-step-1').style.display = 'none';
+    document.getElementById('register-step-2').style.display = 'block';
+
+    // Automatically create Safe wallet
+    await completeRegistration();
+}
+
+async function completeRegistration() {
+    try {
+        showNotification('Creating account with Safe Wallet...', 'info');
+
+        // Register the user with Safe wallet
+        const response = await fetch(`${API_URL}/users/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: registrationData.email,
+                password: registrationData.password,
+                wallet_address: null
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            currentUser = data.user;
+            currentUserId = data.user._id || data.user.id;
+            localStorage.setItem('polybot_user', JSON.stringify(currentUser));
+
+            hideModal('register-modal');
+            showNotification('Account created successfully with Safe Wallet!', 'success');
+            showDashboard();
+        } else {
+            showNotification(data.message || 'Registration failed', 'error');
+            // Go back to step 1
+            document.getElementById('register-step-2').style.display = 'none';
+            document.getElementById('register-step-1').style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Registration error:', error);
+        showNotification('Registration failed. Please try again.', 'error');
+        // Go back to step 1
+        document.getElementById('register-step-2').style.display = 'none';
+        document.getElementById('register-step-1').style.display = 'block';
+    }
+}
+
+async function handleLogin() {
     const email = document.getElementById('login-email').value.trim();
     const password = document.getElementById('login-password').value;
 
-    if (!email) {
-        alert('Please enter your email');
+    if (!email || !password) {
+        showNotification('Please enter email and password', 'error');
         return;
     }
-
-    if (!password) {
-        alert('Please enter your password');
-        return;
-    }
-
-    console.log('Attempting login for:', email);
 
     try {
         const response = await fetch(`${API_URL}/users/login`, {
@@ -333,458 +271,292 @@ window.handleLogin = async function() {
         });
 
         const data = await response.json();
-        console.log('Login response:', data);
 
         if (data.success) {
             currentUser = data.user;
-            currentUserId = data.user.id;
+            currentUserId = data.user._id || data.user.id;
             localStorage.setItem('polybot_user', JSON.stringify(data.user));
+
+            hideModal('login-modal');
             showNotification('Login successful!', 'success');
-
-            // Hide landing page and show dashboard
-            hideLandingPage();
-            hideAuthModal();
-
-            checkWalletAndProceed();
+            showDashboard();
         } else {
-            showNotification('Login failed. ' + (data.message || 'Invalid credentials.'), 'error');
+            showNotification(data.message || 'Login failed', 'error');
         }
     } catch (error) {
         console.error('Login error:', error);
-        showNotification('Login failed. Please check API server.', 'error');
+        showNotification('Login failed. Please try again.', 'error');
     }
 }
 
-window.handleRegister = async function(e) {
-    console.log('=== REGISTER BUTTON CLICKED ===');
-    if (e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-
-    const email = document.getElementById('register-email').value.trim();
-    const password = document.getElementById('register-password').value;
-    const confirmPassword = document.getElementById('register-password-confirm').value;
-
-    console.log('Email:', email);
-    console.log('Password length:', password.length);
-
-    if (!email || !password || !confirmPassword) {
-        alert('Please fill in all fields');
-        return;
-    }
-
-    if (password !== confirmPassword) {
-        alert('Passwords do not match');
-        return;
-    }
-
-    try {
-        console.log('Sending registration request...');
-        const response = await fetch(`${API_URL}/register`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ email, password, wallet_address: null })
-        });
-
-        console.log('Response status:', response.status);
-        const data = await response.json();
-        console.log('Response data:', data);
-
-        if (response.ok && data.success) {
-            alert('Account created successfully! Logging you in...');
-            currentUser = data.user;
-            currentUserId = data.user.id;
-            localStorage.setItem('polybot_user', JSON.stringify(data.user));
-
-            // Hide landing page and show dashboard
-            hideLandingPage();
-            hideAuthModal();
-
-            // If wallet was created during registration, use it immediately
-            if (data.wallet && data.wallet.wallet_address) {
-                console.log('[REGISTER] Wallet created automatically:', data.wallet.wallet_address);
-                hasWallet = true;
-                showDashboard();
-                // Get full wallet info including balance
-                loadWalletBalance();
-            } else {
-                // Fallback: check wallet status
-                checkWalletAndProceed();
-            }
-        } else {
-            alert(data.message || 'Registration failed');
-        }
-    } catch (error) {
-        console.error('Registration error:', error);
-        alert('Error creating account. Please try again.');
-    }
-}
-
-function handleDisconnect() {
+function handleLogout() {
     localStorage.removeItem('polybot_user');
     currentUser = null;
     currentUserId = null;
-    hasWallet = false;
-    location.reload();
+    showLanding();
+    showNotification('Logged out successfully', 'success');
 }
 
-function showForgotPasswordModal(e) {
-    e.preventDefault();
-    document.getElementById('auth-modal').style.display = 'none';
-    document.getElementById('forgot-password-modal').style.display = 'flex';
+//==================== DASHBOARD DATA ====================
+
+async function loadDashboardData() {
+    await Promise.all([
+        loadWalletInfo(),
+        loadUserStats(),
+        loadMarkets(),
+        loadLiveSports(),
+        loadTrendingMarkets(),
+        loadTopTraders(),
+        loadActivity()
+    ]);
 }
 
-function hideForgotPasswordModal() {
-    document.getElementById('forgot-password-modal').style.display = 'none';
-    document.getElementById('auth-modal').style.display = 'flex';
-}
-
-async function handlePasswordReset() {
-    const email = document.getElementById('reset-email').value.trim();
-    const newPassword = document.getElementById('reset-new-password').value;
-    const confirmPassword = document.getElementById('reset-confirm-password').value;
-
-    if (!email) {
-        alert('Please enter your email');
-        return;
-    }
-
-    if (!newPassword) {
-        alert('Please enter a new password');
-        return;
-    }
-
-    if (newPassword.length < 6) {
-        alert('Password must be at least 6 characters');
-        return;
-    }
-
-    if (newPassword !== confirmPassword) {
-        alert('Passwords do not match');
-        return;
-    }
-
+async function loadUserStats() {
     try {
-        showNotification('Resetting password...', 'info');
-
-        const response = await fetch(`${API_URL}/users/reset-password`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, new_password: newPassword })
-        });
-
+        const response = await fetch(`${API_URL}/users/${currentUserId}/stats`);
         const data = await response.json();
 
-        if (data.success) {
-            showNotification('Password reset successful! Please login.', 'success');
-            // Clear the form
-            document.getElementById('reset-email').value = '';
-            document.getElementById('reset-new-password').value = '';
-            document.getElementById('reset-confirm-password').value = '';
-            // Go back to login
-            hideForgotPasswordModal();
-        } else {
-            showNotification('' + (data.message || 'Password reset failed'), 'error');
+        if (data.success || data.stats) {
+            const stats = data.stats || data;
+
+            // Display total volume
+            const totalVolume = stats.total_volume || 0;
+            document.getElementById('total-volume').textContent = `$${totalVolume.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+            // Display total trades
+            const totalTrades = stats.total_trades || 0;
+            document.getElementById('total-trades').textContent = totalTrades;
+
+            // Display win rate
+            const winRate = stats.win_rate || 0;
+            document.getElementById('win-rate').textContent = `${winRate}%`;
+
+            // Display total profit
+            const totalProfit = stats.total_profit || 0;
+            const profitColor = totalProfit >= 0 ? '#4caf50' : '#f44336';
+            const profitElement = document.getElementById('total-profit');
+            profitElement.textContent = `$${totalProfit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            profitElement.style.color = profitColor;
         }
     } catch (error) {
-        console.error('Password reset error:', error);
-        showNotification('Password reset failed. Please check API server.', 'error');
+        console.error('Error loading user stats:', error);
     }
 }
 
-// ==================== WALLET FLOW ====================
-
-async function checkWalletAndProceed() {
+async function loadWalletInfo() {
     try {
         const response = await fetch(`${API_URL}/wallet/${currentUserId}`);
         const data = await response.json();
-        
+
         if (data.success && data.wallet) {
-            hasWallet = true;
-            showDashboard();
-            updateWalletDisplay(data.wallet);
-        } else {
-            showWalletModal();
+            const wallet = data.wallet;
+
+            // Store full address for copying
+            fullWalletAddress = wallet.wallet_address;
+
+            document.getElementById('wallet-address').textContent =
+                wallet.wallet_address ? `${wallet.wallet_address.slice(0, 6)}...${wallet.wallet_address.slice(-4)}` : '-';
+
+            // Display wallet type
+            let walletTypeText = '-';
+            if (wallet.wallet_type === 'safe') {
+                walletTypeText = 'Safe Wallet (Gasless)';
+
+                // Show owner address for Safe wallets
+                if (wallet.owner_address) {
+                    fullOwnerAddress = wallet.owner_address;
+                    document.getElementById('owner-address').textContent =
+                        `${wallet.owner_address.slice(0, 6)}...${wallet.owner_address.slice(-4)}`;
+                    document.getElementById('owner-address-item').style.display = 'block';
+                } else {
+                    document.getElementById('owner-address-item').style.display = 'none';
+                }
+            } else if (wallet.wallet_type === 'imported') {
+                walletTypeText = 'Imported Wallet';
+                document.getElementById('owner-address-item').style.display = 'none';
+            } else if (wallet.wallet_type === 'external') {
+                walletTypeText = 'External Wallet';
+                document.getElementById('owner-address-item').style.display = 'none';
+            } else {
+                walletTypeText = wallet.wallet_type || '-';
+                document.getElementById('owner-address-item').style.display = 'none';
+            }
+            document.getElementById('wallet-type').textContent = walletTypeText;
+
+            // Display POL balance
+            const polBalance = wallet.pol_balance || wallet.matic_balance || 0;
+            document.getElementById('pol-balance').textContent = `${parseFloat(polBalance).toFixed(4)} POL`;
+
+            // Display USDC.e balance
+            const usdcBalance = wallet.usdc_balance || 0;
+            document.getElementById('usdc-balance').textContent = `${parseFloat(usdcBalance).toFixed(2)} USDC.e`;
+
+            // Display total value
+            const totalValue = wallet.total_usd || 0;
+            document.getElementById('total-balance').textContent = `$${parseFloat(totalValue).toFixed(2)}`;
         }
     } catch (error) {
-        console.error('Error checking wallet:', error);
-        showWalletModal();
+        console.error('Error loading wallet:', error);
     }
 }
 
-async function handleCreateInAppWallet() {
+async function loadMarkets() {
     try {
-        // If no user is logged in, create a guest account first
-        if (!currentUserId) {
-            showNotification('Creating guest account...', 'info');
-            const guestEmail = `guest_${Date.now()}@polybot.finance`;
-            const guestPassword = `guest_${Math.random().toString(36).slice(2)}`;
-
-            const registerResponse = await fetch(`${API_URL}/auth/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    email: guestEmail,
-                    password: guestPassword
-                })
-            });
-
-            const registerData = await registerResponse.json();
-
-            if (registerData.success) {
-                currentUserId = registerData.user_id;
-                currentUser = { id: currentUserId, email: guestEmail };
-                localStorage.setItem('polybot_user', JSON.stringify(currentUser));
-            } else {
-                showNotification('Failed to create guest account', 'error');
-                return;
-            }
-        }
-
-        showNotification('Creating your wallet...', 'info');
-
-        // Try Safe Wallet first (gasless behind the scenes)
-        let response = await fetch(`${API_URL}/wallet/create-safe/${currentUserId}`, {
-            method: 'POST'
-        });
-
-        let data = await response.json();
-
-        // Fallback to regular EOA wallet if Safe creation fails
-        if (!data.success) {
-            console.warn('[WALLET] Safe Wallet creation failed, falling back to EOA...');
-            showNotification('Creating wallet...', 'info');
-
-            response = await fetch(`${API_URL}/wallet/create-inapp/${currentUserId}`, {
-                method: 'POST'
-            });
-
-            data = await response.json();
-        }
-
-        if (data.success) {
-            showNotification('Wallet created successfully!', 'success');
-            hasWallet = true;
-            showDashboard();
-            loadWalletBalance();
-        } else {
-            showNotification('Failed to create wallet', 'error');
-        }
-    } catch (error) {
-        console.error('Error creating wallet:', error);
-        showNotification('Failed to create wallet: ' + error.message, 'error');
-    }
-}
-
-async function handleConnectMetaMask() {
-    if (typeof window.ethereum === 'undefined') {
-        showNotification('MetaMask is not installed. Please install it first.', 'error');
-        window.open('https://metamask.io/download/', '_blank');
-        return;
-    }
-
-    try {
-        showNotification('🦊 Connecting to MetaMask...', 'info');
-
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        const walletAddress = accounts[0];
-
-        // If no user is logged in, create a guest account first
-        if (!currentUserId) {
-            showNotification('Creating guest account...', 'info');
-            const guestEmail = `guest_${Date.now()}@polybot.finance`;
-            const guestPassword = `guest_${Math.random().toString(36).slice(2)}`;
-
-            const registerResponse = await fetch(`${API_URL}/auth/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    email: guestEmail,
-                    password: guestPassword
-                })
-            });
-
-            const registerData = await registerResponse.json();
-
-            if (registerData.success) {
-                currentUserId = registerData.user_id;
-                currentUser = { id: currentUserId, email: guestEmail };
-                localStorage.setItem('polybot_user', JSON.stringify(currentUser));
-            } else {
-                showNotification('Failed to create guest account', 'error');
-                return;
-            }
-        }
-
-        const response = await fetch(`${API_URL}/wallet/connect-external/${currentUserId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ wallet_address: walletAddress })
-        });
-
+        const response = await fetch(`${API_URL}/markets?limit=50`);
         const data = await response.json();
 
-        if (data.success) {
-            showNotification('MetaMask connected successfully!', 'success');
-            hasWallet = true;
-            showDashboard();
-            loadWalletBalance();
-        } else {
-            showNotification('Failed to connect wallet', 'error');
+        if (data.success && data.markets) {
+            cachedMarkets = data.markets;
+            // Markets are now loaded on click from trending/live sports sections
+            // No dropdown needed
         }
     } catch (error) {
-        console.error('Error connecting MetaMask:', error);
-        showNotification('Failed to connect MetaMask: ' + error.message, 'error');
+        console.error('Error loading markets:', error);
     }
 }
 
-async function loadWalletBalance() {
-    if (!currentUserId) return;
-    
+async function loadLiveSports() {
     try {
-        const response = await fetch(`${API_URL}/wallet/${currentUserId}`);
+        const response = await fetch(`${API_URL}/markets?limit=100&category=sports&live_only=true`);
         const data = await response.json();
-        
-        if (data.success && data.wallet) {
-            updateWalletDisplay(data.wallet);
+
+        const sportsDiv = document.getElementById('live-sports');
+
+        if (data.success && data.markets && data.markets.length > 0) {
+            sportsDiv.innerHTML = data.markets.map(market => `
+                <div class="market-card sport-card" data-market-id="${market.id}" data-market='${JSON.stringify(market)}'>
+                    <h4>${market.question}</h4>
+                </div>
+            `).join('');
+
+            // Add click handlers
+            document.querySelectorAll('#live-sports .market-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const market = JSON.parse(card.dataset.market);
+                    loadMarketIntoTrading(market);
+                });
+            });
+        } else {
+            sportsDiv.innerHTML = '<p class="empty-state">No live sports markets available</p>';
         }
     } catch (error) {
-        console.error('Error loading wallet balance:', error);
+        console.error('Error loading live sports:', error);
+        document.getElementById('live-sports').innerHTML = '<p class="empty-state">Failed to load sports</p>';
     }
 }
 
-function updateWalletDisplay(wallet) {
-    // Validate wallet address exists and is complete (should be 42 chars: 0x + 40 hex)
-    if (!wallet.wallet_address || wallet.wallet_address.length < 42) {
-        console.error('[WALLET] Invalid wallet address:', wallet.wallet_address);
-        showNotification('Invalid wallet address. Please contact support.', 'error');
-        return;
-    }
-
-    const shortAddress = wallet.wallet_address.slice(0, 6) + '...' + wallet.wallet_address.slice(-4);
-    document.getElementById('wallet-address').textContent = shortAddress;
-
-    const walletTypeBadge = document.getElementById('wallet-type-badge');
-    if (walletTypeBadge) {
-        // Display simple wallet type without technical jargon
-        if (wallet.wallet_type === 'safe' || wallet.wallet_type === 'in-app') {
-            walletTypeBadge.textContent = 'Your Wallet';
-            walletTypeBadge.style.background = '';
-        } else if (wallet.wallet_type === 'external' || wallet.wallet_type === 'metamask') {
-            walletTypeBadge.textContent = 'Connected Wallet';
-            walletTypeBadge.style.background = '';
-        } else {
-            walletTypeBadge.textContent = 'Wallet';
-            walletTypeBadge.style.background = '';
-        }
-    }
-
-    const walletAddressDisplay = document.getElementById('wallet-address-display');
-    if (walletAddressDisplay) {
-        walletAddressDisplay.textContent = wallet.wallet_address;
-    }
-
-    const usdcBalance = document.getElementById('usdc-balance');
-    if (usdcBalance) {
-        usdcBalance.textContent = `$${wallet.usdc_balance.toFixed(2)}`;
-    }
-
-    const maticBalance = document.getElementById('matic-balance');
-    if (maticBalance) {
-        maticBalance.textContent = wallet.matic_balance.toFixed(4);
-    }
-
-    const exportKeyBtn = document.getElementById('export-key-btn');
-    if (exportKeyBtn) {
-        // Allow key export for both in-app and Safe wallets (exports the owner key for Safe)
-        if (wallet.wallet_type === 'in-app' || wallet.wallet_type === 'safe') {
-            exportKeyBtn.style.display = 'block';
-        } else {
-            exportKeyBtn.style.display = 'none';
-        }
-    }
-
-    // Check USDC approval status and show/hide approve button
-    checkUSDCApprovalStatus(wallet.wallet_type);
-}
-
-//==================== WALLET ADDRESS COPY ====================
-
-async function copyWalletAddress() {
+async function loadTrendingMarkets() {
     try {
-        const walletAddressElement = document.getElementById('wallet-address-display');
-        if (!walletAddressElement) {
-            showNotification('Wallet address not found', 'error');
-            return;
-        }
+        const response = await fetch(`${API_URL}/markets?limit=12`);
+        const data = await response.json();
 
-        const address = walletAddressElement.textContent.trim();
+        const marketsDiv = document.getElementById('trending-markets');
 
-        // Copy to clipboard
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(address);
-            showNotification('Wallet address copied!', 'success');
+        if (data.success && data.markets && data.markets.length > 0) {
+            marketsDiv.innerHTML = data.markets.map(market => `
+                <div class="market-card" data-market-id="${market.id}" data-market='${JSON.stringify(market)}'>
+                    <h4>${market.question}</h4>
+                </div>
+            `).join('');
 
-            // Visual feedback - change button text briefly
-            const copyBtn = document.getElementById('copy-address-btn');
-            if (copyBtn) {
-                const originalText = copyBtn.textContent;
-                copyBtn.textContent = 'Copied!';
-                copyBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-
-                setTimeout(() => {
-                    copyBtn.textContent = originalText;
-                    copyBtn.style.background = '';
-                }, 2000);
-            }
+            // Add click handlers
+            document.querySelectorAll('.market-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const market = JSON.parse(card.dataset.market);
+                    loadMarketIntoTrading(market);
+                });
+            });
         } else {
-            // Fallback for older browsers
-            const textarea = document.createElement('textarea');
-            textarea.value = address;
-            textarea.style.position = 'fixed';
-            textarea.style.opacity = '0';
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
-            showNotification('Wallet address copied!', 'success');
+            marketsDiv.innerHTML = '<p class="empty-state">No markets available</p>';
         }
     } catch (error) {
-        console.error('Error copying address:', error);
-        showNotification('Failed to copy address', 'error');
+        console.error('Error loading trending markets:', error);
+        document.getElementById('trending-markets').innerHTML = '<p class="empty-state">Failed to load markets</p>';
     }
 }
 
-// ==================== PRIVATE KEY EXPORT ====================
+function loadMarketIntoTrading(market) {
+    selectedMarket = market.id;
+    selectedMarketData = market; // Store full market data
 
-async function handleExportPrivateKey() {
-    const confirm1 = confirm(
-        "⚠️ WARNING: You are about to export your private key!\n\n" +
-        "This is EXTREMELY DANGEROUS if not handled properly.\n\n" +
-        "Are you sure you want to continue?"
-    );
+    // Display selected market
+    displaySelectedMarket(market);
 
-    if (!confirm1) return;
+    // Scroll to trading section smoothly
+    const tradingSection = document.querySelector('.trade-form');
+    if (tradingSection) {
+        tradingSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 
-    const confirm2 = confirm(
-        "⚠️ FINAL WARNING:\n\n" +
-        "• NEVER share your private key with ANYONE\n" +
-        "• Anyone with your private key can steal ALL your funds\n" +
-        "• Make sure you're in a private location\n" +
-        "• Save it in a secure password manager\n\n" +
-        "Do you understand the risks?"
-    );
+    showNotification(`✅ Market loaded: ${market.question.slice(0, 60)}...`, 'success');
+}
 
-    if (!confirm2) return;
+function displaySelectedMarket(market) {
+    const displayDiv = document.getElementById('selected-market-display');
+    const textDiv = document.getElementById('selected-market-text');
 
-    // Prompt for password verification
-    const password = prompt("Enter your password to verify:");
+    displayDiv.style.display = 'block';
+    textDiv.textContent = market.question;
+}
 
-    if (!password) {
-        showNotification('Password required to export private key', 'error');
+async function loadTopTraders() {
+    try {
+        const response = await fetch(`${API_URL}/traders/top?limit=5`);
+        const data = await response.json();
+
+        const tradersDiv = document.getElementById('top-traders');
+        const traderSelect = document.getElementById('trader-select');
+
+        if (data.success && data.traders && data.traders.length > 0) {
+            tradersDiv.innerHTML = data.traders.map((trader, index) => `
+                <div class="trader-item">
+                    <strong>#${index + 1} ${trader.address.slice(0, 6)}...${trader.address.slice(-4)}</strong>
+                    <span>Win Rate: ${trader.win_rate}% | Trades: ${trader.total_trades}</span>
+                </div>
+            `).join('');
+
+            traderSelect.innerHTML = '<option value="">Select a trader to copy...</option>';
+            data.traders.forEach(trader => {
+                const option = document.createElement('option');
+                option.value = trader.address;
+                option.textContent = `${trader.address.slice(0, 6)}...${trader.address.slice(-4)} (${trader.win_rate}% win rate)`;
+                traderSelect.appendChild(option);
+            });
+        } else {
+            tradersDiv.innerHTML = '<p class="empty-state">No traders available</p>';
+        }
+    } catch (error) {
+        console.error('Error loading traders:', error);
+        document.getElementById('top-traders').innerHTML = '<p class="empty-state">Failed to load traders</p>';
+    }
+}
+
+async function loadActivity() {
+    try {
+        const response = await fetch(`${API_URL}/activity/${currentUserId}?limit=10`);
+        const data = await response.json();
+
+        const activityDiv = document.getElementById('activity-feed');
+
+        if (data.success && data.activities && data.activities.length > 0) {
+            activityDiv.innerHTML = data.activities.map(activity => `
+                <div class="activity-item">
+                    <strong>${activity.action}</strong>
+                    <small>${new Date(activity.timestamp).toLocaleString()}</small>
+                </div>
+            `).join('');
+        } else {
+            activityDiv.innerHTML = '<p class="empty-state">No recent activity</p>';
+        }
+    } catch (error) {
+        console.error('Error loading activity:', error);
+    }
+}
+
+//==================== WALLET FUNCTIONS ====================
+
+async function exportSafeWalletKeys() {
+    if (!confirm('⚠️ WARNING: This will export your Safe Wallet owner keys. These keys give full access to your wallet. Never share them with anyone. Continue?')) {
         return;
     }
 
@@ -792,909 +564,549 @@ async function handleExportPrivateKey() {
         const response = await fetch(`${API_URL}/wallet/export-key/${currentUserId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password })
+            body: JSON.stringify({ password: null })
         });
 
         const data = await response.json();
 
-        if (data.success) {
-            showPrivateKeyModal(data.private_key, data.wallet_type, data.note);
+        if (data.success && data.private_key) {
+            // Show Safe wallet details
+            let message = `SAFE WALLET KEYS\n\n`;
+            message += `Safe Wallet Address: ${data.wallet_address || 'N/A'}\n`;
+            message += `Owner Address: ${data.owner_address || 'N/A'}\n\n`;
+            message += `Owner Private Key:\n${data.private_key}\n\n`;
+            message += `⚠️ KEEP THESE SAFE! Never share with anyone!`;
+
+            // Create a text area to show all info
+            const textarea = document.createElement('textarea');
+            textarea.value = message;
+            textarea.style.position = 'fixed';
+            textarea.style.top = '50%';
+            textarea.style.left = '50%';
+            textarea.style.transform = 'translate(-50%, -50%)';
+            textarea.style.width = '500px';
+            textarea.style.height = '300px';
+            textarea.style.padding = '1rem';
+            textarea.style.zIndex = '10000';
+            textarea.style.fontFamily = 'monospace';
+            textarea.readOnly = true;
+
+            document.body.appendChild(textarea);
+            textarea.select();
+
+            // Copy to clipboard
+            navigator.clipboard.writeText(message);
+
+            alert('Safe Wallet keys copied to clipboard! Press OK to close.');
+            document.body.removeChild(textarea);
+
+            showNotification('Safe Wallet keys exported and copied!', 'success');
         } else {
-            showNotification('' + (data.message || 'Cannot export private key'), 'error');
+            showNotification(data.message || data.error || 'Export failed', 'error');
         }
     } catch (error) {
-        console.error('Error exporting private key:', error);
-        showNotification('Failed to export private key', 'error');
-    }
-}
-
-function showPrivateKeyModal(privateKey, walletType = 'in-app', note = null) {
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.style.display = 'flex';
-
-    // Add special note for Safe wallets
-    const safeWalletNote = walletType === 'safe' ? `
-        <p style="color: #3b82f6; margin: 1rem 0; padding: 0.75rem; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border-left: 3px solid #3b82f6;">
-            ℹ️ <strong>Safe Wallet:</strong> This is your OWNER key that controls your Safe wallet. Import this key to access and control your Safe.
-        </p>
-    ` : '';
-
-    modal.innerHTML = `
-        <div class="modal-content" style="max-width: 600px;">
-            <h2 style="color: #ef4444;">🔑 Your Private Key</h2>
-            <p style="color: #f59e0b; margin: 1rem 0;">
-                ⚠️ KEEP THIS EXTREMELY SAFE! Never share it with anyone!
-            </p>
-            ${safeWalletNote}
-
-            <div style="background: #0f0f23; padding: 1rem; border-radius: 10px; margin: 1.5rem 0; border: 1px solid #ef4444;">
-                <code id="private-key-display" style="
-                    word-break: break-all;
-                    color: #10b981;
-                    font-size: 0.9rem;
-                    display: block;
-                    font-family: 'Courier New', monospace;
-                ">${privateKey}</code>
-            </div>
-
-            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                <button class="btn-primary" id="copy-key-btn" style="flex: 1;">
-                    📋 Copy to Clipboard
-                </button>
-                <button class="btn-danger" id="close-key-modal" style="flex: 1;">
-                    Close
-                </button>
-            </div>
-
-            <p style="color: #a0a0c0; font-size: 0.85rem; margin-top: 1rem; text-align: center;">
-                💡 Import this key into MetaMask or any Web3 wallet to access your funds
-            </p>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    document.getElementById('copy-key-btn').addEventListener('click', () => {
-        navigator.clipboard.writeText(privateKey);
-        showNotification('Private key copied to clipboard!', 'success');
-    });
-    
-    document.getElementById('close-key-modal').addEventListener('click', () => {
-        modal.remove();
-    });
-    
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
-}
-
-// ==================== USDC APPROVAL (for Trading) ====================
-
-async function checkUSDCApprovalStatus(walletType) {
-    if (!currentUserId) return;
-
-    const approveBtn = document.getElementById('approve-usdc-btn');
-    if (!approveBtn) return;
-
-    // Only show for in-app wallets
-    if (walletType !== 'in-app') {
-        approveBtn.style.display = 'none';
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API_URL}/wallet/usdc-allowance/${currentUserId}`);
-        const data = await response.json();
-
-        if (data.success && !data.is_approved) {
-            // Show button if USDC is not approved
-            approveBtn.style.display = 'block';
-            approveBtn.textContent = '✅ Approve';
-            approveBtn.disabled = false;
-            approveBtn.style.opacity = '1';
-        } else if (data.success && data.is_approved) {
-            // Show approved status
-            approveBtn.style.display = 'block';
-            approveBtn.textContent = '✅ Approved';
-            approveBtn.disabled = true;
-            approveBtn.style.opacity = '0.7';
-        } else {
-            // Show button by default (assume not approved if can't check)
-            approveBtn.style.display = 'block';
-            approveBtn.textContent = '✅ Approve';
-            approveBtn.disabled = false;
-            approveBtn.style.opacity = '1';
-        }
-    } catch (error) {
-        console.error('Error checking USDC approval:', error);
-        // Show button on error (better to show than hide)
-        approveBtn.style.display = 'block';
-        approveBtn.textContent = '✅ Approve';
-        approveBtn.disabled = false;
-        approveBtn.style.opacity = '1';
+        console.error('Error exporting Safe wallet keys:', error);
+        showNotification('Failed to export Safe wallet keys', 'error');
     }
 }
 
 async function handleApproveUSDC() {
-    const approveBtn = document.getElementById('approve-usdc-btn');
-
-    const confirmed = confirm(
-        "💰 Approve USDC.e for Trading?\n\n" +
-        "This allows Polymarket Exchange to use your USDC.e for trading.\n\n" +
-        "• One-time approval (never need to do this again)\n" +
-        "• Small gas fee required (~$0.005-0.01 POL)\n" +
-        "• Transaction takes 5-30 seconds\n" +
-        "• Make sure you have POL for gas fees\n\n" +
-        "Click OK to approve."
-    );
-
-    if (!confirmed) return;
-
-    try {
-        // Show loading state
-        approveBtn.disabled = true;
-        approveBtn.textContent = '⏳ Approving...';
-        showNotification('⏳ Approving USDC.e... This may take up to 30 seconds', 'info');
-
-        const response = await fetch(`${API_URL}/wallet/approve-usdc/${currentUserId}`, {
-            method: 'POST'
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            showNotification(`✅ USDC.e Approved!`, 'success');
-
-            // Update button state
-            approveBtn.textContent = '✅ Approved';
-            approveBtn.style.opacity = '0.7';
-
-            // Show transaction link in console
-            console.log('✅ USDC.e Approval Transaction:', data.explorer_url);
-
-            // Show success modal with transaction details
-            showApprovalSuccessModal(data);
-        } else {
-            // Show detailed error
-            const errorMsg = data.error || data.message || 'Unknown error';
-            showNotification(`❌ Approval Failed: ${errorMsg}`, 'error');
-            approveBtn.disabled = false;
-            approveBtn.textContent = '✅ Approve';
-
-            // Show detailed error alert
-            alert(`❌ USDC.e Approval Failed\n\n${errorMsg}\n\n` +
-                  `Common fixes:\n` +
-                  `• Make sure you have at least 0.01 POL for gas (~$0.005)\n` +
-                  `• Check that you have USDC.e (not native USDC)\n` +
-                  `• Wait a moment and try again\n\n` +
-                  `Need help? Check the browser console for details.`);
-        }
-    } catch (error) {
-        console.error('Error approving USDC.e:', error);
-        showNotification('Failed to approve USDC.e: ' + error.message, 'error');
-        approveBtn.disabled = false;
-        approveBtn.textContent = '✅ Approve';
-
-        alert(`❌ Network Error\n\n${error.message}\n\n` +
-              `Please check:\n` +
-              `• Your internet connection\n` +
-              `• Backend server is running\n` +
-              `• Try refreshing the page`);
-    }
-}
-
-function showApprovalSuccessModal(data) {
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.style.display = 'flex';
-
-    modal.innerHTML = `
-        <div class="modal-content" style="max-width: 500px;">
-            <h2 style="color: #10b981;">✅ USDC Approved!</h2>
-            <p style="color: var(--text-secondary); margin: 1rem 0;">
-                Your USDC is now approved for trading on Polymarket. You can start trading immediately!
-            </p>
-
-            <div style="background: rgba(16, 185, 129, 0.1); padding: 1rem; border-radius: 10px; margin: 1.5rem 0; border: 1px solid #10b981;">
-                <p style="color: var(--text-primary); margin: 0.5rem 0;">
-                    <strong>Transaction Hash:</strong><br>
-                    <span style="font-family: 'Courier New', monospace; font-size: 0.85rem; word-break: break-all;">${data.tx_hash}</span>
-                </p>
-                <a href="${data.explorer_url}" target="_blank" rel="noopener noreferrer"
-                   style="color: #10b981; text-decoration: none; display: inline-block; margin-top: 0.5rem;">
-                    🔗 View on Polygonscan →
-                </a>
-            </div>
-
-            <div style="background: rgba(59, 130, 246, 0.1); padding: 1rem; border-radius: 10px; margin: 1rem 0; border: 1px solid #3b82f6;">
-                <p style="color: var(--text-primary); margin: 0.5rem 0; font-size: 0.9rem;">
-                    💡 <strong>What's Next?</strong><br>
-                    • You can now place trades on any Polymarket market<br>
-                    • You only need to approve once<br>
-                    • Future trades will work instantly
-                </p>
-            </div>
-
-            <div style="display: flex; justify-content: center; gap: 1rem; margin-top: 1.5rem;">
-                <button class="btn btn-primary" id="close-approval-modal">
-                    Got it!
-                </button>
-            </div>
-        </div>
-    `;
-
-    document.body.appendChild(modal);
-
-    document.getElementById('close-approval-modal').addEventListener('click', () => {
-        modal.remove();
-    });
-
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
-}
-
-// ==================== UI DISPLAY ====================
-
-function showAuthModal() {
-    console.log('[AUTH MODAL] Showing auth modal');
-    document.getElementById('auth-modal').style.display = 'flex';
-    document.getElementById('wallet-modal').style.display = 'none';
-
-    // Log button visibility after modal is shown
-    setTimeout(() => {
-        const registerBtn = document.getElementById('register-btn');
-        const registerForm = document.getElementById('register-form');
-        console.log('[AUTH MODAL] Register button element:', registerBtn);
-        console.log('[AUTH MODAL] Register form display:', registerForm ? registerForm.style.display : 'not found');
-        console.log('[AUTH MODAL] Register button visible:', registerBtn ? window.getComputedStyle(registerBtn).display : 'not found');
-    }, 100);
-}
-
-function hideAuthModal() {
-    document.getElementById('auth-modal').style.display = 'none';
-}
-
-function switchTab(tab) {
-    console.log('[SWITCH TAB] Switching to:', tab);
-    const loginTab = document.getElementById('login-tab');
-    const registerTab = document.getElementById('register-tab');
-    const loginForm = document.getElementById('login-form');
-    const registerForm = document.getElementById('register-form');
-
-    if (tab === 'login') {
-        loginTab.classList.add('active');
-        registerTab.classList.remove('active');
-        loginForm.style.display = 'flex';
-        registerForm.style.display = 'none';
-        console.log('[SWITCH TAB] Now showing login form');
-    } else if (tab === 'register') {
-        registerTab.classList.add('active');
-        loginTab.classList.remove('active');
-        registerForm.style.display = 'flex';
-        loginForm.style.display = 'none';
-        console.log('[SWITCH TAB] Now showing register form');
-    }
-
-    // Log button state after switch
-    setTimeout(() => {
-        const registerBtn = document.getElementById('register-btn');
-        console.log('[SWITCH TAB] Register button after switch:', registerBtn);
-        console.log('[SWITCH TAB] Register button display:', registerBtn ? window.getComputedStyle(registerBtn).display : 'not found');
-    }, 50);
-}
-
-function showWalletModal() {
-    document.getElementById('auth-modal').style.display = 'none';
-    document.getElementById('wallet-modal').style.display = 'flex';
-}
-
-function showDashboardDemo() {
-    // Show dashboard without login
-    document.getElementById('auth-modal').style.display = 'none';
-    document.getElementById('wallet-modal').style.display = 'none';
-    document.getElementById('dashboard').style.display = 'block';
-
-    // Load public data
-    loadMarkets();
-    loadTopTraders();
-
-    // Start whale activity notifications
-    startWhaleActivityPolling();
-
-    // Show login/register button
-    document.getElementById('login-register-btn').style.display = 'block';
-}
-
-function showDashboard() {
-    document.getElementById('auth-modal').style.display = 'none';
-    document.getElementById('wallet-modal').style.display = 'none';
-    document.getElementById('dashboard').style.display = 'block';
-
-    updateUserInterface();
-    loadStats();
-    loadMarkets();
-    loadActivity();
-    loadSettings();
-    loadPoints();
-    loadWalletBalance();
-    checkBotStatus();
-    loadTopTraders();
-    loadNetworkStatus();
-
-    setInterval(() => {
-        loadStats();
-        loadActivity();
-        loadPoints();
-        loadWalletBalance();
-    }, 10000);
-
-    // Start whale activity notifications
-    startWhaleActivityPolling();
-}
-
-function updateUserInterface() {
-    // Show user elements
-    document.getElementById('login-register-btn').style.display = 'none';
-    document.getElementById('points-display').style.display = 'flex';
-    document.getElementById('wallet-badge').style.display = 'flex';
-    document.getElementById('disconnect-btn').style.display = 'block';
-}
-
-// ==================== LOAD DATA ====================
-
-async function loadStats() {
-    if (!currentUserId) return;
-    
-    try {
-        const response = await fetch(`${API_URL}/users/${currentUserId}/stats`);
-        const stats = await response.json();
-        
-        document.getElementById('total-profit').textContent = `$${stats.total_profit.toFixed(2)}`;
-        document.getElementById('win-rate').textContent = `${stats.win_rate.toFixed(1)}%`;
-        document.getElementById('total-trades').textContent = stats.total_trades;
-        document.getElementById('active-positions').textContent = stats.active_positions;
-    } catch (error) {
-        console.error('Error loading stats:', error);
-    }
-}
-
-async function loadMarkets() {
-    const container = document.getElementById('markets-container');
-    if (!container) return;
-    
-    container.innerHTML = '<div class="loading">Loading markets...</div>';
-    
-    try {
-        const response = await fetch(`${API_URL}/markets?limit=10`);
-        const data = await response.json();
-        
-        if (data.success && data.markets.length > 0) {
-            container.innerHTML = '';
-            data.markets.forEach(market => {
-                const marketCard = createMarketCard(market);
-                container.appendChild(marketCard);
-            });
-        } else {
-            container.innerHTML = '<p class="no-data">No markets available</p>';
-        }
-    } catch (error) {
-        console.error('Error loading markets:', error);
-        container.innerHTML = '<p class="no-data">Failed to load markets</p>';
-    }
-}
-
-function createMarketCard(market) {
-    const div = document.createElement('div');
-    div.className = 'market-card';
-    div.style.cursor = 'pointer';
-
-    const probability = Math.max(market.yes_price || 0.5, market.no_price || 0.5) * 100;
-    const probClass = probability >= 75 ? 'high' : 'medium';
-
-    div.innerHTML = `
-        <div class="market-question">${market.question || 'Unknown Market'}</div>
-        <div class="market-info">
-            <span>Vol: $${((market.volume || 0) / 1000).toFixed(1)}K</span>
-            <span class="market-probability ${probClass}">${probability.toFixed(0)}%</span>
-        </div>
-    `;
-
-    // Add click handler to auto-fill manual trading form
-    div.addEventListener('click', () => {
-        const manualMarketInput = document.getElementById('manual-market');
-        if (manualMarketInput) {
-            manualMarketInput.value = market.question || 'Unknown Market';
-            // Scroll to manual trading section
-            const manualTradingCard = manualMarketInput.closest('.card');
-            if (manualTradingCard) {
-                manualTradingCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-            showNotification('📊 Market loaded to manual trade', 'success');
-        }
-    });
-
-    return div;
-}
-
-async function loadActivity() {
-    if (!currentUserId) return;
-    
-    try {
-        const response = await fetch(`${API_URL}/activity/${currentUserId}?limit=5`);
-        const data = await response.json();
-        
-        const container = document.getElementById('activity-feed');
-        if (!container) return;
-        
-        if (data.success && data.activity.length > 0) {
-            container.innerHTML = '';
-            data.activity.forEach(item => {
-                const activityItem = createActivityItem(item);
-                container.appendChild(activityItem);
-            });
-        } else {
-            container.innerHTML = '<p class="no-data">No recent activity</p>';
-        }
-    } catch (error) {
-        console.error('Error loading activity:', error);
-    }
-}
-
-function createActivityItem(item) {
-    const div = document.createElement('div');
-    div.className = 'activity-item';
-    
-    const icon = item.action.includes('Bought') ? '📈' : '📉';
-    const profitClass = item.profit >= 0 ? 'positive' : 'negative';
-    const profitSign = item.profit >= 0 ? '+' : '';
-    
-    div.innerHTML = `
-        <div class="activity-icon">${icon}</div>
-        <div class="activity-content">
-            <strong>${item.market}</strong>
-            <small>${item.action} · ${item.status}</small>
-        </div>
-        <div class="activity-profit ${profitClass}">
-            ${profitSign}$${item.profit.toFixed(2)}
-        </div>
-    `;
-    
-    return div;
-}
-
-async function loadSettings() {
-    if (!currentUserId) return;
-
-    try {
-        const response = await fetch(`${API_URL}/settings/${currentUserId}`);
-        const settings = await response.json();
-
-        document.getElementById('category-filter').value = settings.category_filter;
-        document.getElementById('probability-slider').value = settings.min_probability * 100;
-        document.getElementById('prob-value').textContent = (settings.min_probability * 100) + '%';
-        document.getElementById('position-size').value = settings.position_size;
-        document.getElementById('max-trades').value = settings.max_daily_trades;
-        document.getElementById('min-liquidity').value = settings.min_liquidity;
-
-        // Load stop loss and take profit
-        if (settings.stop_loss !== undefined) {
-            document.getElementById('stop-loss').value = settings.stop_loss;
-        }
-        if (settings.take_profit !== undefined) {
-            document.getElementById('take-profit').value = settings.take_profit;
-        }
-    } catch (error) {
-        console.error('Error loading settings:', error);
-    }
-}
-
-async function loadPoints() {
-    if (!currentUserId) return;
-    
-    try {
-        const response = await fetch(`${API_URL}/points/${currentUserId}`);
-        const data = await response.json();
-        
-        document.getElementById('user-points').textContent = data.points_balance.toLocaleString();
-        document.getElementById('points-balance').textContent = data.points_balance.toLocaleString();
-        
-        updateRedeemButtons(data.points_balance);
-    } catch (error) {
-        console.error('Error loading points:', error);
-    }
-}
-
-function updateRedeemButtons(points) {
-    document.querySelectorAll('.btn-redeem').forEach(btn => {
-        const required = parseInt(btn.dataset.points);
-        if (points >= required) {
-            btn.disabled = false;
-            btn.textContent = 'Redeem';
-        } else {
-            btn.disabled = true;
-            btn.textContent = `Need ${(required - points).toLocaleString()}`;
-        }
-    });
-}
-
-// ==================== BOT CONTROLS ====================
-
-async function startBot() {
-    await saveSettings();
-    
-    try {
-        const response = await fetch(`${API_URL}/bot/start/${currentUserId}`, {
-            method: 'POST'
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            document.getElementById('bot-status').innerHTML = `
-                <span class="status-dot online"></span>
-                <span>Online</span>
-            `;
-            document.getElementById('start-bot-btn').style.display = 'none';
-            document.getElementById('stop-bot-btn').style.display = 'block';
-            showNotification('Bot started successfully!', 'success');
-        } else {
-            showNotification('' + data.message, 'error');
-        }
-    } catch (error) {
-        console.error('Error starting bot:', error);
-        showNotification('Failed to start bot', 'error');
-    }
-}
-
-async function stopBot() {
-    try {
-        const response = await fetch(`${API_URL}/bot/stop/${currentUserId}`, {
-            method: 'POST'
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            document.getElementById('bot-status').innerHTML = `
-                <span class="status-dot offline"></span>
-                <span>Offline</span>
-            `;
-            document.getElementById('start-bot-btn').style.display = 'block';
-            document.getElementById('stop-bot-btn').style.display = 'none';
-            showNotification('⏸ Bot stopped', 'info');
-        }
-    } catch (error) {
-        console.error('Error stopping bot:', error);
-    }
-}
-
-async function checkBotStatus() {
-    if (!currentUserId) return;
-    
-    try {
-        const response = await fetch(`${API_URL}/bot/status/${currentUserId}`);
-        const data = await response.json();
-        
-        if (data.is_running) {
-            document.getElementById('bot-status').innerHTML = `
-                <span class="status-dot online"></span>
-                <span>Online</span>
-            `;
-            document.getElementById('start-bot-btn').style.display = 'none';
-            document.getElementById('stop-bot-btn').style.display = 'block';
-        }
-    } catch (error) {
-        console.error('Error checking bot status:', error);
-    }
-}
-
-async function saveSettings() {
-    const settings = {
-        min_probability: parseFloat(document.getElementById('probability-slider').value) / 100,
-        category_filter: document.getElementById('category-filter').value,
-        position_size: parseFloat(document.getElementById('position-size').value),
-        max_daily_trades: parseInt(document.getElementById('max-trades').value),
-        min_liquidity: parseFloat(document.getElementById('min-liquidity').value),
-        stop_loss: parseFloat(document.getElementById('stop-loss').value),
-        take_profit: parseFloat(document.getElementById('take-profit').value)
-    };
-
-    try {
-        await fetch(`${API_URL}/settings/${currentUserId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(settings)
-        });
-        showNotification('Settings saved with stop loss and take profit', 'success');
-    } catch (error) {
-        console.error('Error saving settings:', error);
-    }
-}
-
-// ==================== MANUAL TRADING ====================
-
-async function executeManualTrade() {
-    const market = document.getElementById('manual-market').value;
-    const amount = parseFloat(document.getElementById('manual-amount').value);
-    const position = document.getElementById('manual-position').value;
-    
-    if (!market || !amount) {
-        showNotification('Please fill in all fields', 'error');
+    if (!currentUserId) {
+        showNotification('Please log in first', 'error');
         return;
     }
-    
+
+    const approveBtn = document.getElementById('approve-usdc-btn');
+    const originalText = approveBtn.textContent;
+
     try {
+        // Step 1: Check wallet balance first (POL and USDC.e)
+        console.log('[APPROVE] Checking wallet balance...');
+        approveBtn.disabled = true;
+        approveBtn.textContent = 'Checking balance...';
+
+        const walletResponse = await fetch(`${API_URL}/wallet/${currentUserId}`);
+        const walletData = await walletResponse.json();
+
+        if (!walletData.success) {
+            showNotification('Failed to check wallet balance', 'error');
+            approveBtn.disabled = false;
+            approveBtn.textContent = originalText;
+            return;
+        }
+
+        const polBalance = parseFloat(walletData.wallet?.pol_balance || 0);
+        const usdcBalance = parseFloat(walletData.wallet?.usdc_balance || 0);
+        const walletType = walletData.wallet?.wallet_type || 'unknown';
+
+        console.log('[APPROVE] POL Balance:', polBalance);
+        console.log('[APPROVE] USDC.e Balance:', usdcBalance);
+        console.log('[APPROVE] Wallet Type:', walletType);
+
+        // Step 2: Check if it's an external wallet
+        if (walletType === 'external') {
+            approveBtn.disabled = false;
+            approveBtn.textContent = originalText;
+            showNotification('External wallets approve USDC.e automatically when trading', 'warning');
+
+            alert('External Wallet Detected\n\nFor external wallets (MetaMask, Rabby, etc.), USDC.e approval happens automatically when you make your first trade.\n\nYour wallet will show an approval popup when needed.');
+            return;
+        }
+
+        // Step 3: Check if user has USDC.e to approve
+        if (usdcBalance === 0) {
+            approveBtn.disabled = false;
+            approveBtn.textContent = originalText;
+
+            const depositMsg = 'You need to deposit USDC.e first!\n\n' +
+                               'Current USDC.e Balance: 0.00\n\n' +
+                               'Please deposit USDC.e to your wallet address before approving.\n\n' +
+                               'Would you like to see how to get USDC.e?';
+
+            if (confirm(depositMsg)) {
+                alert('How to Get USDC.e:\n\n' +
+                      '1. Bridge USDC from Ethereum to Polygon:\n' +
+                      '   https://wallet.polygon.technology/bridge\n\n' +
+                      '2. Or buy USDC.e directly on Polygon using:\n' +
+                      '   - Uniswap (Polygon)\n' +
+                      '   - QuickSwap\n' +
+                      '   - Any Polygon DEX\n\n' +
+                      '3. Send USDC.e to your wallet address\n\n' +
+                      'IMPORTANT: Make sure it\'s USDC.e (bridged USDC), not native USDC!');
+            }
+            return;
+        }
+
+        // Step 4: Check for sufficient gas (POL)
+        const MIN_POL_REQUIRED = 0.02;
+
+        if (polBalance < MIN_POL_REQUIRED) {
+            approveBtn.disabled = false;
+            approveBtn.textContent = originalText;
+
+            const gasMsg = `⛽ Insufficient Gas (POL)\n\n` +
+                          `Current POL Balance: ${polBalance.toFixed(4)} POL\n` +
+                          `Required: ~${MIN_POL_REQUIRED} POL\n` +
+                          `Needed: ${(MIN_POL_REQUIRED - polBalance).toFixed(4)} POL more\n\n` +
+                          `USDC.e approval requires ~0.01-0.02 POL for gas fees.\n\n` +
+                          `Please deposit POL to your wallet first.\n\n` +
+                          `Would you like to see how to get POL?`;
+
+            showNotification(`Insufficient POL for gas. You have ${polBalance.toFixed(4)} POL, need at least ${MIN_POL_REQUIRED} POL`, 'error');
+
+            if (confirm(gasMsg)) {
+                const helpMsg = 'How to Get POL (Polygon):\n\n' +
+                               '1. Buy POL on exchanges:\n' +
+                               '   - Coinbase, Binance, Kraken, etc.\n\n' +
+                               '2. Bridge from Ethereum:\n' +
+                               '   https://wallet.polygon.technology/bridge\n\n' +
+                               '3. Use a faucet (small amounts):\n' +
+                               '   https://faucet.polygon.technology\n\n' +
+                               `Send POL to your wallet address:\n${walletData.wallet?.wallet_address}\n\n` +
+                               'You need ~0.05 POL to be safe for multiple transactions.';
+
+                alert(helpMsg);
+            }
+            return;
+        }
+
+        // Step 5: Check if already approved
+        console.log('[APPROVE] Checking current allowance...');
+        approveBtn.textContent = 'Checking approval...';
+
+        const allowanceResponse = await fetch(`${API_URL}/wallet/usdc-allowance/${currentUserId}`);
+        const allowanceData = await allowanceResponse.json();
+
+        if (allowanceData.success && allowanceData.is_approved) {
+            approveBtn.disabled = false;
+            approveBtn.textContent = '✓ Already Approved';
+            approveBtn.style.background = '#28a745';
+
+            showNotification('USDC.e is already approved! You can trade now.', 'success');
+            return;
+        }
+
+        // Step 6: Confirm approval
+        approveBtn.textContent = originalText;
+
+        const confirmMsg = `Approve USDC.e for trading on Polymarket?\n\n` +
+                          `✅ POL Balance: ${polBalance.toFixed(4)} POL (sufficient)\n` +
+                          `✅ USDC.e Balance: ${usdcBalance.toFixed(2)} USDC.e\n\n` +
+                          `Gas Cost: ~0.01-0.02 POL (~$0.01)\n\n` +
+                          `This is a one-time approval. Click OK to proceed.`;
+
+        if (!confirm(confirmMsg)) {
+            approveBtn.disabled = false;
+            return;
+        }
+
+        // Step 7: Execute approval
+        console.log('[APPROVE] Executing USDC.e approval...');
+        approveBtn.textContent = 'Approving...';
+
+        const response = await fetch(`${API_URL}/wallet/approve-usdc/${currentUserId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+        console.log('[APPROVE] Response:', data);
+
+        if (data.success) {
+            showNotification('✅ USDC.e approved successfully! You can now trade.', 'success');
+
+            // Show transaction details
+            if (data.tx_hash) {
+                console.log('[APPROVE] Transaction hash:', data.tx_hash);
+                console.log('[APPROVE] Explorer URL:', data.explorer_url);
+
+                const viewTxMsg = `✅ USDC.e Approved Successfully!\n\n` +
+                                 `Transaction Hash:\n${data.tx_hash}\n\n` +
+                                 `You can now trade on Polymarket!\n\n` +
+                                 `View transaction on Polygonscan?`;
+
+                if (confirm(viewTxMsg)) {
+                    window.open(data.explorer_url, '_blank');
+                }
+            }
+
+            // Update button to show approved state
+            approveBtn.textContent = '✓ Approved';
+            approveBtn.style.background = '#28a745';
+            approveBtn.disabled = false;
+
+            // Reload wallet to update balances
+            setTimeout(() => {
+                loadWallet();
+            }, 2000);
+
+        } else {
+            // Handle specific error cases
+            let errorMsg = 'Approval failed';
+
+            if (data.error) {
+                // Check for gas-related errors
+                if (data.error.toLowerCase().includes('insufficient') && data.error.toLowerCase().includes('pol')) {
+                    errorMsg = `⛽ Insufficient POL for gas fees\n\n${data.error}\n\nPlease deposit more POL to your wallet.`;
+                    showNotification(`Insufficient POL: ${data.error}`, 'error');
+                } else if (data.error.toLowerCase().includes('gas')) {
+                    errorMsg = `⛽ Gas Error\n\n${data.error}`;
+                    showNotification(`Gas error: ${data.error}`, 'error');
+                } else {
+                    errorMsg = data.error;
+                    showNotification(data.error, 'error');
+                }
+            } else {
+                errorMsg = data.message || 'Unknown error occurred';
+                showNotification(errorMsg, 'error');
+            }
+
+            console.error('[APPROVE] Error:', data);
+            alert(errorMsg);
+
+            // Re-enable button
+            approveBtn.disabled = false;
+            approveBtn.textContent = originalText;
+        }
+
+    } catch (error) {
+        console.error('[APPROVE] Exception:', error);
+        showNotification('Network error. Please check your connection and try again.', 'error');
+
+        // Re-enable button
+        approveBtn.disabled = false;
+        approveBtn.textContent = originalText;
+    }
+}
+
+function copyWalletAddress() {
+    if (!fullWalletAddress) {
+        showNotification('No wallet address available', 'error');
+        return;
+    }
+
+    navigator.clipboard.writeText(fullWalletAddress).then(() => {
+        showNotification('Full address copied to clipboard!', 'success');
+    }).catch(() => {
+        showNotification('Failed to copy address', 'error');
+    });
+}
+
+function copyOwnerAddress() {
+    if (!fullOwnerAddress) {
+        showNotification('No owner address available', 'error');
+        return;
+    }
+
+    navigator.clipboard.writeText(fullOwnerAddress).then(() => {
+        showNotification('Owner address copied! Send POL here for gas.', 'success');
+    }).catch(() => {
+        showNotification('Failed to copy owner address', 'error');
+    });
+}
+
+async function sendFunds() {
+    const tokenType = document.getElementById('send-token-type').value;
+    const recipient = document.getElementById('send-recipient').value.trim();
+    const amount = parseFloat(document.getElementById('send-amount').value);
+
+    if (!recipient) {
+        showNotification('Please enter recipient address', 'error');
+        return;
+    }
+
+    if (!recipient.startsWith('0x') || recipient.length !== 42) {
+        showNotification('Invalid recipient address', 'error');
+        return;
+    }
+
+    if (!amount || amount <= 0) {
+        showNotification('Please enter a valid amount', 'error');
+        return;
+    }
+
+    if (!confirm(`Are you sure you want to send ${amount} ${tokenType.toUpperCase()} to ${recipient}?`)) {
+        return;
+    }
+
+    try {
+        showNotification('Sending funds...', 'info');
+
+        const response = await fetch(`${API_URL}/wallet/send/${currentUserId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                recipient: recipient,
+                amount: amount,
+                token: tokenType
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification('Funds sent successfully!', 'success');
+
+            // Show transaction link if available
+            if (data.explorer_url) {
+                console.log('Transaction:', data.explorer_url);
+            }
+
+            document.getElementById('send-funds-section').style.display = 'none';
+            document.getElementById('send-recipient').value = '';
+            document.getElementById('send-amount').value = '';
+
+            // Reload wallet info
+            await loadWalletInfo();
+        } else {
+            // Show detailed error message
+            let errorMsg = data.message || 'Send failed';
+
+            // If it's a gas issue, show the owner address
+            if (data.owner_address) {
+                errorMsg = data.explanation || errorMsg;
+                console.log('Owner address:', data.owner_address);
+                console.log('Owner POL balance:', data.owner_pol_balance);
+            }
+
+            showNotification(errorMsg, 'error');
+
+            // Show alert with full details if there's an explanation
+            if (data.explanation) {
+                setTimeout(() => {
+                    alert(data.explanation);
+                }, 500);
+            }
+        }
+    } catch (error) {
+        console.error('Error sending funds:', error);
+        showNotification('Failed to send funds', 'error');
+    }
+}
+
+//==================== TRADING FUNCTIONS ====================
+
+function selectPosition(position) {
+    selectedPosition = position;
+
+    // Update UI
+    document.querySelectorAll('.btn-position').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    if (position === 'YES') {
+        document.getElementById('position-yes').classList.add('active');
+    } else {
+        document.getElementById('position-no').classList.add('active');
+    }
+}
+
+async function executeTrade() {
+    if (!selectedMarket || !selectedMarketData) {
+        showNotification('Please select a market', 'error');
+        return;
+    }
+
+    if (!selectedPosition) {
+        showNotification('Please select YES or NO', 'error');
+        return;
+    }
+
+    const amount = parseFloat(document.getElementById('trade-amount').value);
+    if (!amount || amount <= 0) {
+        showNotification('Please enter a valid amount', 'error');
+        return;
+    }
+
+    // Get stop loss and take profit if enabled
+    const enableStopLoss = document.getElementById('enable-stop-loss').checked;
+    const enableTakeProfit = document.getElementById('enable-take-profit').checked;
+
+    const stopLoss = enableStopLoss ? parseFloat(document.getElementById('stop-loss').value) : null;
+    const takeProfit = enableTakeProfit ? parseFloat(document.getElementById('take-profit').value) : null;
+
+    try {
+        showNotification('Executing trade...', 'info');
+
         const response = await fetch(`${API_URL}/trades/manual?user_id=${currentUserId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                market_question: market,
+                market_id: selectedMarket,
+                market_question: selectedMarketData.question,
+                position: selectedPosition,
                 amount: amount,
-                position: position
+                stop_loss: stopLoss,
+                take_profit: takeProfit
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
-            showNotification(`✅ Trade executed! +${data.points_earned} points`, 'success');
-            document.getElementById('manual-market').value = '';
-            document.getElementById('manual-amount').value = '';
-            loadStats();
-            loadActivity();
-            loadPoints();
+            // Show detailed success message
+            let message = '✅ Real trade executed on Polymarket!\n\n';
+            if (data.details) {
+                message += data.details + '\n';
+            }
+            if (data.order_id) {
+                message += `Order ID: ${data.order_id.substring(0, 8)}...\n`;
+            }
+            if (data.builder_attributed) {
+                message += '🎯 Builder attribution: Active\n';
+            }
+            message += `\nRemaining balance: $${data.remaining_balance?.toFixed(2) || '0.00'} USDC`;
+
+            showNotification(message, 'success');
+
+            // Reset form
+            document.getElementById('trade-amount').value = '';
+            document.getElementById('stop-loss').value = '';
+            document.getElementById('take-profit').value = '';
+            selectedPosition = null;
+            selectedMarketData = null;
+            document.querySelectorAll('.btn-position').forEach(btn => btn.classList.remove('active'));
+
+            // Reload data
+            await loadWalletInfo();
+            await loadActivity();
         } else {
-            showNotification('Trade failed', 'error');
+            showNotification(data.message || data.error || 'Trade failed', 'error');
         }
     } catch (error) {
         console.error('Error executing trade:', error);
-        showNotification('Trade failed', 'error');
+        showNotification('Failed to execute trade', 'error');
     }
 }
 
-// ==================== POINTS REDEMPTION ====================
-
-async function redeemPoints(points, reward) {
-    if (!confirm(`Redeem ${points.toLocaleString()} points for ${reward}?`)) {
-        return;
-    }
-    
+async function loadMarketFromURL() {
     try {
-        const response = await fetch(`${API_URL}/points/redeem?user_id=${currentUserId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ amount: points, reward: reward })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification(`🎉 Successfully redeemed ${reward}!`, 'success');
-            loadPoints();
-        } else {
-            showNotification('Insufficient points', 'error');
-        }
-    } catch (error) {
-        console.error('Error redeeming points:', error);
-        showNotification('Redemption failed', 'error');
-    }
-}
+        const url = document.getElementById('polymarket-url').value.trim();
 
-// ==================== SEARCH ====================
-
-function handleMarketSearch(e) {
-    const query = e.target.value.toLowerCase();
-    const marketCards = document.querySelectorAll('.market-card');
-    
-    marketCards.forEach(card => {
-        const text = card.textContent.toLowerCase();
-        card.style.display = text.includes(query) ? 'block' : 'none';
-    });
-}
-
-// ==================== NOTIFICATIONS ====================
-
-function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.textContent = message;
-    notification.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        padding: 1rem 1.5rem;
-        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
-        color: white;
-        border-radius: 10px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-        z-index: 3000;
-        font-weight: 600;
-        animation: slideIn 0.3s ease;
-    `;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
-}
-
-// ==================== NETWORK SWITCHING ====================
-
-async function loadNetworkStatus() {
-    try {
-        const response = await fetch(`${API_URL}/network/status/${currentUserId}`);
-        const data = await response.json();
-
-        if (data.success) {
-            currentNetwork = data.network;
-            updateNetworkDisplay(data.network);
-        }
-    } catch (error) {
-        console.error('Error loading network status:', error);
-        // Default to testnet if error
-        updateNetworkDisplay('testnet');
-    }
-}
-
-async function handleNetworkSwitch() {
-    const newNetwork = currentNetwork === 'testnet' ? 'mainnet' : 'testnet';
-
-    const confirmSwitch = confirm(
-        newNetwork === 'mainnet'
-            ? '⚠️ WARNING: You are about to switch to MAINNET.\n\nThis will use REAL money and REAL funds.\n\nMake sure you have:\n✓ Tested everything on testnet\n✓ Sufficient MATIC for gas fees\n✓ Real USDC for trading\n\nContinue to mainnet?'
-            : '🧪 Switching to TESTNET (Safe Mode)\n\nYou will use test tokens only.\nPerfect for testing strategies!\n\nContinue?'
-    );
-
-    if (!confirmSwitch) return;
-
-    try {
-        showNotification(`Switching to ${newNetwork}...`, 'info');
-
-        const response = await fetch(`${API_URL}/network/switch/${currentUserId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ network: newNetwork })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            currentNetwork = newNetwork;
-            updateNetworkDisplay(newNetwork);
-            showNotification(`✅ Switched to ${newNetwork === 'mainnet' ? 'MAINNET' : 'TESTNET'}!`, 'success');
-            loadWalletBalance(); // Refresh balances for new network
-        } else {
-            showNotification('Failed to switch network', 'error');
-        }
-    } catch (error) {
-        console.error('Error switching network:', error);
-        showNotification('Failed to switch network', 'error');
-    }
-}
-
-function updateNetworkDisplay(network) {
-    const networkStatus = document.getElementById('network-status');
-    if (networkStatus) {
-        if (network === 'mainnet') {
-            networkStatus.innerHTML = '🟢 Mainnet';
-            networkStatus.style.color = '#10b981';
-        } else {
-            networkStatus.innerHTML = '🧪 Testnet';
-            networkStatus.style.color = '#f59e0b';
-        }
-    }
-}
-
-// ==================== TOP TRADERS ====================
-
-async function loadTopTraders() {
-    const container = document.getElementById('top-traders-list');
-    if (!container) return;
-
-    container.innerHTML = '<div class="loading">Loading top traders...</div>';
-
-    try {
-        const response = await fetch(`${API_URL}/traders/top?limit=5`);
-        const data = await response.json();
-
-        if (data.success && data.traders.length > 0) {
-            container.innerHTML = '';
-
-            // Update copy trader dropdown
-            const copySelect = document.getElementById('copy-trader-select');
-            if (copySelect) {
-                copySelect.innerHTML = '<option value="">Choose a trader...</option>';
-                data.traders.forEach(trader => {
-                    const option = document.createElement('option');
-                    option.value = trader.wallet_address;
-                    option.textContent = `${trader.wallet_address.slice(0, 8)}... - ${trader.win_rate.toFixed(1)}% WR`;
-                    copySelect.appendChild(option);
-                });
-            }
-
-            data.traders.forEach((trader, index) => {
-                const traderCard = createTraderCard(trader, index + 1);
-                container.appendChild(traderCard);
-            });
-        } else {
-            container.innerHTML = '<p class="no-data">No traders found yet</p>';
-        }
-    } catch (error) {
-        console.error('Error loading top traders:', error);
-        container.innerHTML = '<p class="no-data">Failed to load traders</p>';
-    }
-}
-
-function createTraderCard(trader, rank) {
-    const div = document.createElement('div');
-    div.className = 'trader-card';
-
-    const rankEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
-    const shortAddress = trader.wallet_address.slice(0, 6) + '...' + trader.wallet_address.slice(-4);
-
-    div.innerHTML = `
-        <div class="trader-rank">${rankEmoji}</div>
-        <div class="trader-info">
-            <div class="trader-address">${shortAddress}</div>
-            <div class="trader-stats">
-                <span class="win-rate ${trader.win_rate >= 70 ? 'high' : 'medium'}">
-                    ${trader.win_rate.toFixed(1)}% WR
-                </span>
-                <span class="trades-count">${trader.total_trades} trades</span>
-            </div>
-            <div class="trader-profit ${trader.total_profit >= 0 ? 'positive' : 'negative'}">
-                ${trader.total_profit >= 0 ? '+' : ''}$${trader.total_profit.toFixed(2)}
-            </div>
-        </div>
-        <button class="btn-copy-small" data-address="${trader.wallet_address}">
-            Copy
-        </button>
-    `;
-
-    // Add click handler for copy button
-    const copyBtn = div.querySelector('.btn-copy-small');
-    copyBtn.addEventListener('click', () => {
-        document.getElementById('copy-trader-select').value = trader.wallet_address;
-        showNotification(`Selected trader ${shortAddress}`, 'success');
-    });
-
-    return div;
-}
-
-// ==================== COPY TRADING ====================
-
-async function startCopyTrading() {
-    const manualWallet = document.getElementById('copy-wallet-input').value.trim();
-    const selectedTrader = document.getElementById('copy-trader-select').value;
-    const copyAmount = parseFloat(document.getElementById('copy-amount').value);
-    const maxTrades = parseInt(document.getElementById('max-copy-trades').value);
-
-    // Determine which wallet to use
-    let targetWallet = '';
-
-    if (manualWallet) {
-        // Validate wallet address format
-        if (!manualWallet.startsWith('0x') || manualWallet.length !== 42) {
-            showNotification('Invalid wallet address format. Must be 42 characters starting with 0x', 'error');
+        if (!url) {
+            showNotification('Please paste a Polymarket URL', 'error');
             return;
         }
-        targetWallet = manualWallet;
-    } else if (selectedTrader) {
-        targetWallet = selectedTrader;
-    } else {
-        showNotification('Please enter a wallet address or select a trader to copy', 'error');
+
+        // Validate it's a Polymarket URL
+        if (!url.includes('polymarket.com')) {
+            showNotification('Invalid URL - must be a Polymarket link', 'error');
+            return;
+        }
+
+        showNotification('Loading market...', 'info');
+
+        // Extract market slug from URL
+        // Example URLs:
+        // https://polymarket.com/event/will-trump-win-2024
+        // https://polymarket.com/event/will-trump-win-2024?tid=123
+        // https://polymarket.com/market/will-bitcoin-hit-100k
+
+        let slug = '';
+        if (url.includes('/event/')) {
+            slug = url.split('/event/')[1].split('?')[0].split('/')[0];
+        } else if (url.includes('/market/')) {
+            slug = url.split('/market/')[1].split('?')[0].split('/')[0];
+        } else {
+            showNotification('Could not parse URL - try copying the full market URL', 'error');
+            return;
+        }
+
+        // Search for the market using the slug
+        const response = await fetch(`${API_URL}/markets/search?query=${encodeURIComponent(slug)}&limit=20`);
+        const data = await response.json();
+
+        if (!data.success || !data.markets || data.markets.length === 0) {
+            showNotification('Market not found - try searching for it in trending markets', 'error');
+            return;
+        }
+
+        // Find the best match - prefer exact slug match or close match in question
+        let market = data.markets[0];
+
+        for (const m of data.markets) {
+            if (m.market_slug === slug || m.question.toLowerCase().includes(slug.replace(/-/g, ' '))) {
+                market = m;
+                break;
+            }
+        }
+
+        // Load the market into trading
+        loadMarketIntoTrading(market);
+
+        showNotification(`Market loaded: ${market.question.substring(0, 50)}...`, 'success');
+
+        // Clear the URL input
+        document.getElementById('polymarket-url').value = '';
+
+    } catch (error) {
+        console.error('Error loading market from URL:', error);
+        showNotification('Failed to load market from URL', 'error');
+    }
+}
+
+//==================== COPY TRADING FUNCTIONS ====================
+
+async function startCopyTrading() {
+    // Get trader address from either select or custom input
+    let traderAddress = document.getElementById('trader-select').value;
+    const customAddress = document.getElementById('custom-trader-address').value.trim();
+
+    if (customAddress) {
+        traderAddress = customAddress;
+    }
+
+    const maxAmount = parseFloat(document.getElementById('copy-amount').value);
+
+    if (!traderAddress) {
+        showNotification('Please select a trader or enter a wallet address', 'error');
         return;
     }
 
-    if (!copyAmount || copyAmount <= 0) {
-        showNotification('Please enter a valid copy amount', 'error');
+    if (!maxAmount || maxAmount <= 0) {
+        showNotification('Please enter a valid max amount', 'error');
         return;
     }
 
@@ -1705,26 +1117,21 @@ async function startCopyTrading() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                target_wallet: targetWallet,
-                copy_amount: copyAmount,
-                max_trades_per_day: maxTrades
+                trader_address: traderAddress,
+                max_amount: maxAmount
             })
         });
 
         const data = await response.json();
 
         if (data.success) {
-            copyTradingActive = true;
-            document.getElementById('copy-trade-status').style.display = 'flex';
-            document.getElementById('copy-trade-status').innerHTML = `
-                <span class="status-dot online"></span>
-                <span>Copying: ${targetWallet.slice(0, 8)}...</span>
-            `;
-            document.getElementById('start-copy-btn').style.display = 'none';
-            document.getElementById('stop-copy-btn').style.display = 'block';
             showNotification('Copy trading started!', 'success');
+            document.getElementById('copy-status').textContent = `Active (${traderAddress.slice(0, 6)}...${traderAddress.slice(-4)})`;
+            document.getElementById('copy-status').style.color = '#28a745';
+            document.getElementById('start-copy-trading').style.display = 'none';
+            document.getElementById('stop-copy-trading').style.display = 'block';
         } else {
-            showNotification('' + data.message, 'error');
+            showNotification(data.error || 'Failed to start copy trading', 'error');
         }
     } catch (error) {
         console.error('Error starting copy trading:', error);
@@ -1734,6 +1141,8 @@ async function startCopyTrading() {
 
 async function stopCopyTrading() {
     try {
+        showNotification('Stopping copy trading...', 'info');
+
         const response = await fetch(`${API_URL}/copy-trading/stop/${currentUserId}`, {
             method: 'POST'
         });
@@ -1741,11 +1150,13 @@ async function stopCopyTrading() {
         const data = await response.json();
 
         if (data.success) {
-            copyTradingActive = false;
-            document.getElementById('copy-trade-status').style.display = 'none';
-            document.getElementById('start-copy-btn').style.display = 'block';
-            document.getElementById('stop-copy-btn').style.display = 'none';
-            showNotification('⏸ Copy trading stopped', 'info');
+            showNotification('Copy trading stopped', 'success');
+            document.getElementById('copy-status').textContent = 'Inactive';
+            document.getElementById('copy-status').style.color = '#666';
+            document.getElementById('start-copy-trading').style.display = 'block';
+            document.getElementById('stop-copy-trading').style.display = 'none';
+        } else {
+            showNotification(data.error || 'Failed to stop copy trading', 'error');
         }
     } catch (error) {
         console.error('Error stopping copy trading:', error);
@@ -1753,209 +1164,305 @@ async function stopCopyTrading() {
     }
 }
 
-// ==================== WHALE NOTIFICATIONS ====================
+//==================== MARKET SEARCH & FILTER ====================
 
-let whaleNotificationQueue = [];
-let lastWhaleId = 0;
-let currentWhaleNotification = null;
-let isShowingWhaleNotification = false;
+async function searchMarkets() {
+    const searchTerm = document.getElementById('market-search').value.trim();
+    const category = document.getElementById('market-category').value;
 
-function showWhaleNotification(whaleData) {
-    // Add to queue instead of showing immediately
-    whaleNotificationQueue.push(whaleData);
-
-    // Process queue if not already processing
-    if (!isShowingWhaleNotification) {
-        processWhaleQueue();
-    }
-}
-
-function processWhaleQueue() {
-    // If no notifications in queue or already showing one, stop
-    if (whaleNotificationQueue.length === 0 || isShowingWhaleNotification) {
-        return;
-    }
-
-    // Get next notification from queue
-    const whaleData = whaleNotificationQueue.shift();
-    isShowingWhaleNotification = true;
-
-    // Display the notification
-    displayWhaleNotification(whaleData);
-}
-
-function displayWhaleNotification(whaleData) {
-    const container = document.getElementById('whale-notifications');
-    if (!container) {
-        isShowingWhaleNotification = false;
-        return;
-    }
-
-    const notification = document.createElement('div');
-    notification.className = 'whale-notification';
-    notification.dataset.whaleId = whaleData.id;
-    currentWhaleNotification = notification;
-
-    const shortWallet = whaleData.wallet.slice(0, 6) + '...' + whaleData.wallet.slice(-4);
-    const positionClass = whaleData.position.toLowerCase();
-
-    notification.innerHTML = `
-        <div class="whale-header">
-            <div class="whale-icon">🐋</div>
-            <div class="whale-badge">Whale Alert</div>
-            <button class="whale-close">×</button>
-        </div>
-        <div class="whale-content">
-            <div class="whale-wallet">${shortWallet}</div>
-            <div class="whale-action">
-                just bought <span class="whale-position ${positionClass}">${whaleData.position}</span> with
-                <span class="whale-amount">$${whaleData.amount.toLocaleString()}</span>
-            </div>
-            <div class="whale-market">${whaleData.market}</div>
-            <div class="whale-actions">
-                <button class="whale-btn whale-trade-btn" data-whale='${JSON.stringify(whaleData)}'>
-                    📈 Trade Now
-                </button>
-                <button class="whale-btn whale-share-btn" data-whale='${JSON.stringify(whaleData)}'>
-                    🐦 Share on X
-                </button>
-            </div>
-        </div>
-    `;
-
-    // Add close handler
-    const closeBtn = notification.querySelector('.whale-close');
-    closeBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        dismissWhaleNotification(notification);
-    });
-
-    // Add trade handler
-    const tradeBtn = notification.querySelector('.whale-trade-btn');
-    tradeBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const whale = JSON.parse(e.target.dataset.whale);
-        handleWhaleTradeClick(whale);
-    });
-
-    // Add share handler
-    const shareBtn = notification.querySelector('.whale-share-btn');
-    shareBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const whale = JSON.parse(e.target.dataset.whale);
-        handleWhaleShareClick(whale);
-    });
-
-    // Auto-dismiss after 8 seconds (reduced for faster queue processing)
-    setTimeout(() => {
-        dismissWhaleNotification(notification);
-    }, 8000);
-
-    container.appendChild(notification);
-}
-
-function handleWhaleTradeClick(whaleData) {
-    // Fill manual trading form with whale data
-    const manualMarketInput = document.getElementById('manual-market');
-    const manualPositionSelect = document.getElementById('manual-position');
-    const manualAmountInput = document.getElementById('manual-amount');
-
-    if (manualMarketInput) {
-        manualMarketInput.value = whaleData.market;
-    }
-
-    if (manualPositionSelect) {
-        manualPositionSelect.value = whaleData.position;
-    }
-
-    if (manualAmountInput) {
-        // Suggest a smaller amount than the whale (e.g., 10% of whale amount)
-        const suggestedAmount = Math.round(whaleData.amount * 0.1);
-        manualAmountInput.value = suggestedAmount;
-    }
-
-    // Scroll to manual trading section
-    const manualTradingCard = manualMarketInput ? manualMarketInput.closest('.card') : null;
-    if (manualTradingCard) {
-        manualTradingCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-        // Highlight the section
-        manualTradingCard.style.boxShadow = '0 0 20px rgba(59, 130, 246, 0.5)';
-        setTimeout(() => {
-            manualTradingCard.style.boxShadow = '';
-        }, 2000);
-    }
-
-    showNotification('🐋 Whale trade loaded! Review and execute.', 'success');
-}
-
-function handleWhaleShareClick(whaleData) {
-    // Create X (Twitter) share URL
-    const websiteUrl = 'https://polybot.finance';
-    const tweetText = `🐋 Whale Alert! A whale just bought ${whaleData.position} with $${whaleData.amount.toLocaleString()} on: ${whaleData.market}\n\nFollow the smart money and trade now at ${websiteUrl}`;
-
-    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
-
-    // Open in new window
-    window.open(twitterUrl, '_blank', 'width=550,height=420');
-
-    showNotification('🐦 Opening X (Twitter) to share...', 'success');
-}
-
-function dismissWhaleNotification(notification) {
-    if (!notification || notification.classList.contains('dismissing')) return;
-
-    notification.classList.add('dismissing');
-    setTimeout(() => {
-        notification.remove();
-        currentWhaleNotification = null;
-        isShowingWhaleNotification = false;
-
-        // Process next notification in queue
-        setTimeout(() => {
-            processWhaleQueue();
-        }, 500); // Small delay between notifications
-    }, 500);
-}
-
-async function loadWhaleActivity() {
     try {
-        const response = await fetch(`${API_URL}/whale-activity?since=${lastWhaleId}`);
+        showNotification('Searching all markets...', 'info');
+
+        // Build query parameters - get ALL markets
+        let queryParams = '?limit=500';  // Get up to 500 markets (all available)
+        if (category) {
+            queryParams += `&category=${category}`;
+        }
+
+        const response = await fetch(`${API_URL}/markets${queryParams}`);
         const data = await response.json();
 
-        if (data.success && data.whales.length > 0) {
-            data.whales.forEach(whale => {
-                showWhaleNotification(whale);
-                if (whale.id > lastWhaleId) {
-                    lastWhaleId = whale.id;
-                }
-            });
+        if (data.success && data.markets) {
+            let markets = data.markets;
+
+            // Filter by search term if provided
+            if (searchTerm) {
+                markets = markets.filter(market =>
+                    market.question.toLowerCase().includes(searchTerm.toLowerCase())
+                );
+            }
+
+            displayFilteredMarkets(markets);
+            showNotification(`Found ${markets.length} markets`, 'success');
+        } else {
+            showNotification('Failed to search markets', 'error');
         }
     } catch (error) {
-        console.error('Error loading whale activity:', error);
+        console.error('Error searching markets:', error);
+        showNotification('Search failed', 'error');
     }
 }
 
-function startWhaleActivityPolling() {
-    // Load immediately
-    loadWhaleActivity();
+function displayFilteredMarkets(markets) {
+    const marketsDiv = document.getElementById('trending-markets');
 
-    // Poll every 15 seconds
-    setInterval(loadWhaleActivity, 15000);
+    if (markets.length === 0) {
+        marketsDiv.innerHTML = '<p class="empty-state">No markets found matching your criteria</p>';
+        return;
+    }
+
+    marketsDiv.innerHTML = markets.map(market => `
+        <div class="market-card" data-market-id="${market.id}" data-market='${JSON.stringify(market)}'>
+            <h4>${market.question}</h4>
+        </div>
+    `).join('');
+
+    // Add click handlers
+    document.querySelectorAll('.market-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const market = JSON.parse(card.dataset.market);
+            loadMarketIntoTrading(market);
+        });
+    });
 }
 
-// Animation styles
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from { transform: translateX(400px); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-    @keyframes slideOut {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(400px); opacity: 0; }
-    }
-`;
-document.head.appendChild(style);
+//==================== BOT TRADING ====================
 
-console.log('✅ App.js v2.4 - Added input field debug tool');
+let botInterval = null;
+
+async function startBotTrading() {
+    const category = document.getElementById('bot-category').value;
+    const probability = parseInt(document.getElementById('bot-probability').value);
+    const amount = parseFloat(document.getElementById('bot-amount').value);
+    const stopLoss = parseFloat(document.getElementById('bot-stop-loss').value);
+    const takeProfit = parseFloat(document.getElementById('bot-take-profit').value);
+
+    if (!amount || amount <= 0) {
+        showNotification('Please enter a valid trade amount', 'error');
+        return;
+    }
+
+    if (!stopLoss || !takeProfit) {
+        showNotification('Please set stop loss and take profit', 'error');
+        return;
+    }
+
+    try {
+        showNotification('Starting bot...', 'info');
+
+        const response = await fetch(`${API_URL}/bot/start/${currentUserId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                category: category || 'all',
+                min_probability: probability,
+                amount: amount,
+                stop_loss: stopLoss,
+                take_profit: takeProfit
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification('Bot started successfully!', 'success');
+
+            // Update UI
+            const botStatus = document.getElementById('bot-status');
+            botStatus.textContent = 'Active';
+            botStatus.classList.add('active');
+            document.getElementById('bot-stats').textContent = `Min: ${probability}% | Amount: $${amount}`;
+            document.getElementById('start-bot').style.display = 'none';
+            document.getElementById('stop-bot').style.display = 'block';
+
+            // Start monitoring bot
+            startBotMonitoring();
+        } else {
+            showNotification(data.error || 'Failed to start bot', 'error');
+        }
+    } catch (error) {
+        console.error('Error starting bot:', error);
+        showNotification('Failed to start bot', 'error');
+    }
+}
+
+async function stopBotTrading() {
+    try {
+        showNotification('Stopping bot...', 'info');
+
+        const response = await fetch(`${API_URL}/bot/stop/${currentUserId}`, {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification('Bot stopped', 'success');
+
+            // Update UI
+            const botStatus = document.getElementById('bot-status');
+            botStatus.textContent = 'Inactive';
+            botStatus.classList.remove('active');
+            document.getElementById('bot-stats').textContent = '';
+            document.getElementById('start-bot').style.display = 'block';
+            document.getElementById('stop-bot').style.display = 'none';
+
+            // Stop monitoring
+            if (botInterval) {
+                clearInterval(botInterval);
+                botInterval = null;
+            }
+        } else {
+            showNotification(data.error || 'Failed to stop bot', 'error');
+        }
+    } catch (error) {
+        console.error('Error stopping bot:', error);
+        showNotification('Failed to stop bot', 'error');
+    }
+}
+
+function startBotMonitoring() {
+    // Check bot status every 30 seconds
+    botInterval = setInterval(async () => {
+        try {
+            const response = await fetch(`${API_URL}/bot/status/${currentUserId}`);
+            const data = await response.json();
+
+            if (data.success && data.status) {
+                const stats = data.status;
+                document.getElementById('bot-stats').textContent =
+                    `Trades: ${stats.trades_executed || 0} | Win Rate: ${stats.win_rate || 0}%`;
+
+                // Reload activity to show bot trades
+                await loadActivity();
+            }
+        } catch (error) {
+            console.error('Error checking bot status:', error);
+        }
+    }, 30000); // Check every 30 seconds
+}
+
+//==================== WHALE ALERTS ====================
+
+let whaleInterval = null;
+let lastWhaleId = null;
+let currentWhaleData = null;
+
+function initializeWhaleAlerts() {
+    // Set up event listeners for whale alert buttons
+    document.getElementById('close-whale-alert')?.addEventListener('click', closeWhaleAlert);
+    document.getElementById('whale-trade-btn')?.addEventListener('click', loadWhaleMarket);
+    document.getElementById('whale-tweet-btn')?.addEventListener('click', tweetWhaleAlert);
+
+    // Start polling for whale activity
+    startWhaleMonitoring();
+}
+
+function startWhaleMonitoring() {
+    // Poll for whale activity every 15 seconds
+    whaleInterval = setInterval(async () => {
+        try {
+            let queryParams = '';
+            if (lastWhaleId) {
+                queryParams = `?since=${lastWhaleId}`;
+            }
+
+            const response = await fetch(`${API_URL}/whale-activity${queryParams}`);
+            const data = await response.json();
+
+            if (data.success && data.whales && data.whales.length > 0) {
+                // Filter for buys only and amount > $20,000
+                const bigWhales = data.whales.filter(whale =>
+                    whale.side === 'BUY' && parseFloat(whale.amount) >= 20000
+                );
+
+                if (bigWhales.length > 0) {
+                    // Show the first whale alert
+                    const whale = bigWhales[0];
+                    lastWhaleId = whale.id;
+                    showWhaleAlert(whale);
+                }
+            }
+        } catch (error) {
+            console.error('Error checking whale activity:', error);
+        }
+    }, 15000); // Check every 15 seconds
+}
+
+function showWhaleAlert(whale) {
+    currentWhaleData = whale;
+
+    // Update whale alert content
+    document.getElementById('whale-market-title').textContent = whale.market_question || 'Unknown Market';
+    document.getElementById('whale-amount').textContent = `$${parseFloat(whale.amount).toLocaleString()}`;
+    document.getElementById('whale-position').textContent = whale.position || whale.side;
+
+    // Format time
+    const timeAgo = getTimeAgo(whale.timestamp);
+    document.getElementById('whale-time').textContent = timeAgo;
+
+    // Show the alert
+    const whaleAlert = document.getElementById('whale-alert');
+    whaleAlert.style.display = 'block';
+
+    // Auto-hide after 30 seconds
+    setTimeout(() => {
+        closeWhaleAlert();
+    }, 30000);
+}
+
+function closeWhaleAlert() {
+    document.getElementById('whale-alert').style.display = 'none';
+    currentWhaleData = null;
+}
+
+function loadWhaleMarket() {
+    if (!currentWhaleData) return;
+
+    // Create market object from whale data
+    const market = {
+        id: currentWhaleData.market_id,
+        question: currentWhaleData.market_question,
+        probability: currentWhaleData.probability || 0,
+        volume: currentWhaleData.volume || 0
+    };
+
+    // Load into manual trading
+    loadMarketIntoTrading(market);
+
+    // Close whale alert
+    closeWhaleAlert();
+}
+
+function tweetWhaleAlert() {
+    if (!currentWhaleData) return;
+
+    const whale = currentWhaleData;
+    const amount = parseFloat(whale.amount).toLocaleString();
+    const position = whale.position || whale.side;
+    const market = whale.market_question || 'a market';
+
+    // Create tweet text
+    const tweetText = `🐋 WHALE ALERT!\n\n$${amount} ${position} on:\n"${market}"\n\nTrade on Polymarket 👇\n#Polymarket #WhaleAlert`;
+
+    // Encode for URL
+    const encodedText = encodeURIComponent(tweetText);
+
+    // Open Twitter intent
+    window.open(`https://twitter.com/intent/tweet?text=${encodedText}`, '_blank');
+
+    closeWhaleAlert();
+}
+
+function getTimeAgo(timestamp) {
+    const now = new Date();
+    const then = new Date(timestamp);
+    const seconds = Math.floor((now - then) / 1000);
+
+    if (seconds < 60) return `${seconds}s ago`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    return `${Math.floor(seconds / 86400)}d ago`;
+}
+
+

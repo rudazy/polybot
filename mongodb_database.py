@@ -48,7 +48,7 @@ class MongoDatabase:
             print(f"[DB] Testing connection...")
             # Test connection
             server_info = self.client.server_info()
-            print(f"[DB] ✅ Connected to MongoDB Atlas!")
+            print(f"[DB] OK Connected to MongoDB Atlas!")
             print(f"[DB] MongoDB version: {server_info.get('version', 'unknown')}")
 
             # List existing collections for debugging
@@ -59,10 +59,10 @@ class MongoDatabase:
             print(f"[DB] Creating indexes...")
             self.create_indexes()
 
-            print(f"[DB] ✅ MongoDB initialization complete")
+            print(f"[DB] OK MongoDB initialization complete")
 
         except Exception as e:
-            print(f"[DB ERROR] ❌ MongoDB connection failed!")
+            print(f"[DB ERROR] FAILED MongoDB connection failed!")
             print(f"[DB ERROR] Error type: {type(e).__name__}")
             print(f"[DB ERROR] Error message: {str(e)}")
 
@@ -117,7 +117,7 @@ class MongoDatabase:
             except Exception as e:
                 print(f"[DB WARNING] Could not create points.user_id index: {e}")
 
-            print("[DB] ✅ Database indexes created/verified!")
+            print("[DB] OK Database indexes created/verified!")
 
         except Exception as e:
             print(f"[DB WARNING] Index creation error: {e}")
@@ -161,7 +161,7 @@ class MongoDatabase:
             result = self.users.insert_one(user_doc)
             user_id = str(result.inserted_id)
 
-            print(f"[DB] ✅ User inserted with ID: {user_id}")
+            print(f"[DB] OK User inserted with ID: {user_id}")
             print(f"[DB] Creating default settings for user...")
 
             # Create default settings
@@ -180,11 +180,11 @@ class MongoDatabase:
             }
             self.settings.insert_one(settings_doc)
 
-            print(f"[DB] ✅ User created successfully: {email} (ID: {user_id})")
+            print(f"[DB] OK User created successfully: {email} (ID: {user_id})")
             return user_id
 
         except Exception as e:
-            print(f"[DB ERROR] ❌ Failed to create user: {email}")
+            print(f"[DB ERROR] FAILED Failed to create user: {email}")
             print(f"[DB ERROR] Error type: {type(e).__name__}")
             print(f"[DB ERROR] Error message: {str(e)}")
             print(f"[DB ERROR] Error details: {repr(e)}")

@@ -89,7 +89,7 @@ class BlockchainManager:
     def __init__(self):
         """
         Initialize Web3 connection to Polygon Mainnet
-        ⚠️ FIXED: Now tries multiple RPC endpoints for better reliability
+        WARNING FIXED: Now tries multiple RPC endpoints for better reliability
         """
         self.network_config = NETWORK_CONFIG
         self.chain_id = self.network_config["chain_id"]
@@ -105,7 +105,7 @@ class BlockchainManager:
                 if w3_test.is_connected():
                     block_number = w3_test.eth.block_number
                     self.w3 = w3_test
-                    print(f"[OK] ✅ Connected to {self.network_config['name']} (Chain ID: {self.chain_id})")
+                    print(f"[OK] OK Connected to {self.network_config['name']} (Chain ID: {self.chain_id})")
                     print(f"[INFO] RPC: {rpc_url}")
                     print(f"[INFO] Latest Block: {block_number}")
                     print(f"[INFO] Native Token: {self.network_config['native_token_name']} (formerly MATIC)")
@@ -115,7 +115,7 @@ class BlockchainManager:
                 continue
 
         if not self.w3:
-            print(f"[ERROR] ❌ Failed to connect to ANY Polygon RPC endpoint!")
+            print(f"[ERROR] FAILED Failed to connect to ANY Polygon RPC endpoint!")
             print(f"[ERROR] Tried {len(self.network_config['rpc_urls'])} different endpoints")
             # Initialize with first endpoint anyway (will fail on use, but allows graceful degradation)
             self.w3 = Web3(Web3.HTTPProvider(self.network_config["rpc_urls"][0]))
@@ -259,7 +259,7 @@ class BlockchainManager:
     def get_matic_balance(self, address: str) -> float:
         """
         Get POL balance for an address (formerly MATIC)
-        ⚠️ UPDATED: Function renamed from MATIC → POL to reflect rebrand
+        WARNING UPDATED: Function renamed from MATIC → POL to reflect rebrand
 
         Args:
             address: Wallet address
@@ -296,7 +296,7 @@ class BlockchainManager:
     def get_usdc_balance(self, address: str) -> float:
         """
         Get USDC balance for an address
-        ⚠️ IMPROVED: Better error handling and validation
+        WARNING IMPROVED: Better error handling and validation
 
         Args:
             address: Wallet address
@@ -334,7 +334,7 @@ class BlockchainManager:
     def get_all_balances(self, address: str) -> Dict:
         """
         Get all token balances for an address
-        ⚠️ UPDATED: Now shows POL instead of MATIC (rebrand)
+        WARNING UPDATED: Now shows POL instead of MATIC (rebrand)
 
         Args:
             address: Wallet address
@@ -574,11 +574,16 @@ class BlockchainManager:
 
             # Check POL balance for gas
             pol_balance = self.get_matic_balance(from_address)
-            if pol_balance < 0.01:
-                print(f"[ERROR] Insufficient POL for gas. Balance: {pol_balance} POL")
+            min_pol_required = 0.02  # Require 0.02 POL to be safe
+
+            if pol_balance < min_pol_required:
+                print(f"[ERROR] ⛽ Insufficient POL for gas. Balance: {pol_balance} POL, Required: {min_pol_required} POL")
                 return {
                     "success": False,
-                    "error": f"Insufficient POL for gas fees. You have {pol_balance:.6f} POL, need at least 0.01 POL (~$0.005)"
+                    "error": f"Insufficient POL for gas fees. You have {pol_balance:.6f} POL but need at least {min_pol_required} POL (~$0.01-0.02). Please deposit more POL to your wallet.",
+                    "pol_balance": pol_balance,
+                    "pol_required": min_pol_required,
+                    "pol_needed": round(min_pol_required - pol_balance, 6)
                 }
 
             # Default to Polymarket Exchange contract
@@ -615,7 +620,7 @@ class BlockchainManager:
             # Send transaction
             tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
 
-            print(f"[OK] ✅ USDC.e Approval transaction sent! Hash: {tx_hash.hex()}")
+            print(f"[OK] OK USDC.e Approval transaction sent! Hash: {tx_hash.hex()}")
             print(f"🔗 View on explorer: {self.network_config['explorer']}/tx/{tx_hash.hex()}")
 
             # Wait for confirmation
@@ -625,9 +630,9 @@ class BlockchainManager:
             success = receipt['status'] == 1
 
             if success:
-                print(f"[OK] ✅ USDC.e approved! You can now trade on Polymarket.")
+                print(f"[OK] OK USDC.e approved! You can now trade on Polymarket.")
             else:
-                print(f"[ERROR] ❌ USDC.e approval failed! Status: {receipt['status']}")
+                print(f"[ERROR] FAILED USDC.e approval failed! Status: {receipt['status']}")
 
             return {
                 "success": success,

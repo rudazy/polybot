@@ -1,8 +1,13 @@
 fastapi
-uvicorn
+uvicorn[standard]
 pymongo
 requests
 python-dotenv
 web3
-eth-account
+eth-account==0.13.7
 httpx
+py-clob-client==0.28.0
+py-order-utils
+py-builder-signing-sdk
+cryptography
+pydantic

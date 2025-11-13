@@ -14,6 +14,7 @@ import random
 
 from mongodb_database import MongoDatabase
 from polymarket_api import PolymarketAPI
+from polymarket_trading import PolymarketTrading
 from trading_bot import TradingBot
 from wallet_manager import WalletManager
 
@@ -47,6 +48,7 @@ app.add_middleware(
 # Initialize services
 db = MongoDatabase()
 polymarket = PolymarketAPI()
+polymarket_trading = PolymarketTrading()  # Real trading client with builder credentials
 wallet_manager = WalletManager(db)
 active_bots = {}  # Store active bot instances per user
 active_copy_traders = {}  # Store active copy trading instances per user
@@ -102,7 +104,7 @@ class CopyTradeStart(BaseModel):
 
 
 class PrivateKeyExport(BaseModel):
-    password: str
+    password: Optional[str] = None
 
 
 class PasswordReset(BaseModel):
@@ -511,19 +513,26 @@ def get_user_stats(user_id: str):
 # ==================== MARKETS ENDPOINTS ====================
 
 @app.get("/markets")
-def get_markets(limit: int = 20, category: str = "all", trending: bool = True):
+def get_markets(limit: int = 20, category: str = "all", trending: bool = True, live_only: bool = False):
     """
     Get active markets from Polymarket
     ⚠️ FIXED: Now sorts by 24hr volume for trending markets with error handling
+    Added live_only flag for truly live sports games
     """
     try:
-        print(f"[MARKETS] Fetching markets (limit={limit}, trending={trending}, category={category})")
+        print(f"[MARKETS] Fetching markets (limit={limit}, trending={trending}, category={category}, live_only={live_only})")
+
+        # IMPORTANT: For live sports, fetch WAY more markets since sports aren't in top 100
+        actual_limit = limit
+        if live_only and category.lower() == 'sports':
+            actual_limit = 500  # Fetch many markets to find sports games
+            print(f"[MARKETS] Live sports mode: fetching {actual_limit} markets to find games")
 
         # Use trending markets sorted by 24hr volume
         if trending:
-            markets = polymarket.get_trending_markets(limit=limit)
+            markets = polymarket.get_trending_markets(limit=actual_limit)
         else:
-            markets = polymarket.get_markets(limit=limit)
+            markets = polymarket.get_markets(limit=actual_limit)
 
         if not markets:
             print(f"[MARKETS WARNING] No markets returned from Polymarket API")
@@ -537,14 +546,83 @@ def get_markets(limit: int = 20, category: str = "all", trending: bool = True):
         print(f"[MARKETS] Retrieved {len(markets)} raw markets from Polymarket")
 
         # Filter by category if specified
-        if category != "all":
-            markets = [m for m in markets if category.lower() in m.get('market_slug', '').lower()]
+        if category != "all" and category:
+            category_lower = category.lower()
+            filtered_markets = []
+
+            for m in markets:
+                # Check multiple fields for category matching
+                market_slug = m.get('market_slug', '').lower()
+                question = m.get('question', '').lower()
+                tags = [tag.lower() for tag in m.get('tags', [])]
+
+                # Sports detection - look for sports keywords and patterns
+                if category_lower == 'sports':
+                    sports_keywords = [
+                        'nfl', 'nba', 'mlb', 'nhl', 'soccer', 'football', 'basketball', 'baseball', 'hockey',
+                        'game', 'match', ' vs ', ' vs. ', ' @ ', 'championship', 'world cup', 'premier league',
+                        'uefa', 'fifa', 'super bowl', 'playoffs', 'finals', 'o/u', 'over/under', 'spread',
+                        'nuggets', 'lakers', 'celtics', 'knicks', 'warriors', 'heat', 'bucks',  # NBA teams
+                        'chiefs', 'bills', '49ers', 'eagles', 'cowboys', 'packers',  # NFL teams
+                        'yankees', 'dodgers', 'red sox', 'mets', 'cubs',  # MLB teams
+                    ]
+                    if any(keyword in question or keyword in market_slug for keyword in sports_keywords):
+                        filtered_markets.append(m)
+                        continue
+                    if 'sports' in tags:
+                        filtered_markets.append(m)
+                        continue
+
+                # Generic category check
+                elif (category_lower in market_slug or
+                      category_lower in question or
+                      category_lower in tags):
+                    filtered_markets.append(m)
+
+            markets = filtered_markets
             print(f"[MARKETS] Filtered to {len(markets)} markets for category: {category}")
+
+        # Filter for LIVE games only (ongoing sports games)
+        if live_only:
+            from datetime import datetime, timedelta
+
+            live_markets = []
+            now = datetime.utcnow()
+
+            for m in markets:
+                question = m.get('question', '').lower()
+                end_date = m.get('end_date_iso')
+
+                # Check if it's a live game indicator
+                is_live_game = (
+                    ' vs ' in question or
+                    ' @ ' in question or
+                    'live' in question or
+                    'game ' in question or
+                    'match ' in question
+                )
+
+                # Check if ending soon (within next 24 hours - likely live or about to be live)
+                is_ending_soon = False
+                if end_date:
+                    try:
+                        end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                        hours_until_end = (end_dt - now).total_seconds() / 3600
+                        # Live games typically end within 24 hours
+                        is_ending_soon = 0 < hours_until_end < 24
+                    except:
+                        pass
+
+                if is_live_game and is_ending_soon:
+                    live_markets.append(m)
+
+            markets = live_markets
+            print(f"[MARKETS] Filtered to {len(markets)} LIVE games")
 
         # Format markets
         formatted_markets = [polymarket.format_market_data(m) for m in markets]
 
-        print(f"[MARKETS] ✅ Returning {len(formatted_markets)} formatted markets")
+        print(f"[MARKETS] OK Returning {len(formatted_markets)} formatted markets")
 
         # Log sample market for debugging
         if formatted_markets:
@@ -668,26 +746,126 @@ def create_manual_trade(user_id: str, trade: TradeCreate):
             "error": str(e)
         }
 
-    # Balance is sufficient, create the trade
+    # Get market data to extract trading information
+    print(f"[TRADE] Fetching market data for: {trade.market_question}")
+
+    # Search for the market to get token IDs and condition ID
+    markets = polymarket.search_markets(trade.market_question, limit=10)
+
+    if not markets:
+        return {
+            "success": False,
+            "message": f"Could not find market: {trade.market_question}"
+        }
+
+    # Find exact match or use first result
+    market_data = markets[0]
+    for m in markets:
+        if m.get('question', '').lower() == trade.market_question.lower():
+            market_data = m
+            break
+
+    condition_id = market_data.get('condition_id')
+    token_ids = market_data.get('token_ids', [])
+
+    if not condition_id or not token_ids:
+        return {
+            "success": False,
+            "message": "Market data incomplete - missing token IDs or condition ID",
+            "market_data": market_data
+        }
+
+    # Get the token ID based on position (YES = first token, NO = second token)
+    token_index = 0 if trade.position.upper() == 'YES' else 1
+    if len(token_ids) <= token_index:
+        return {
+            "success": False,
+            "message": f"Token ID not found for {trade.position} position"
+        }
+
+    token_id = token_ids[token_index]
+
+    print(f"[TRADE] Market: {market_data.get('question')[:50]}...")
+    print(f"[TRADE] Condition ID: {condition_id}")
+    print(f"[TRADE] Token ID ({trade.position}): {token_id}")
+
+    # Get user's private key for signing the order
+    try:
+        private_key = wallet_manager.export_private_key(user_id)
+
+        if not private_key:
+            return {
+                "success": False,
+                "message": "Private key not available for this wallet"
+            }
+
+    except Exception as e:
+        print(f"[TRADE ERROR] Failed to export private key: {e}")
+        return {
+            "success": False,
+            "message": "Failed to access wallet for signing",
+            "error": str(e)
+        }
+
+    # Execute the real trade on Polymarket
+    print(f"[TRADE] Executing {trade.position} order for ${trade.amount} USDC...")
+
+    order_result = polymarket_trading.create_market_order(
+        private_key=private_key,
+        token_id=token_id,
+        side=trade.position,
+        amount=trade.amount,
+        condition_id=condition_id
+    )
+
+    if not order_result.get('success'):
+        return {
+            "success": False,
+            "message": f"Order failed: {order_result.get('error', 'Unknown error')}",
+            "details": order_result
+        }
+
+    # Store the trade in database
     trade_data = {
-        'market_id': trade.market_id or 'manual-trade',
+        'market_id': trade.market_id or market_data.get('id'),
         'market_question': trade.market_question,
         'position': trade.position,
         'amount': trade.amount,
-        'entry_price': 0.75  # Simulated for now
+        'entry_price': order_result.get('price', 0),
+        'shares': order_result.get('size', 0),
+        'order_id': order_result.get('order_id'),
+        'condition_id': condition_id,
+        'token_id': token_id,
+        'builder_attributed': order_result.get('builder_attributed', False)
     }
 
     trade_id = db.create_trade(user_id, trade_data)
 
     if not trade_id:
-        raise HTTPException(status_code=400, detail="Failed to create trade")
+        # Order was placed but DB save failed
+        return {
+            "success": True,
+            "warning": "Order placed but failed to save to database",
+            "order_id": order_result.get('order_id'),
+            "message": order_result.get('message'),
+            "price": order_result.get('price'),
+            "shares": order_result.get('size'),
+            "builder_attributed": order_result.get('builder_attributed')
+        }
+
+    print(f"[TRADE] ✅ Trade executed successfully! Order ID: {order_result.get('order_id')}")
 
     return {
         "success": True,
-        "message": "Trade executed successfully",
+        "message": "✅ Real trade executed on Polymarket!",
         "trade_id": trade_id,
-        "points_earned": int(trade.amount),
-        "remaining_balance": usdc_balance - trade.amount
+        "order_id": order_result.get('order_id'),
+        "price": order_result.get('price'),
+        "shares": order_result.get('size'),
+        "cost": trade.amount,
+        "builder_attributed": order_result.get('builder_attributed'),
+        "remaining_balance": usdc_balance - trade.amount,
+        "details": f"Bought {order_result.get('size', 0):.2f} shares at ${order_result.get('price', 0):.4f}"
     }
 
 
@@ -700,6 +878,65 @@ def get_user_trades(user_id: str, limit: int = 10):
         "count": len(trades),
         "trades": trades
     }
+
+
+@app.get("/orders/status/{order_id}")
+def get_order_status(order_id: str):
+    """Get the status of a specific order"""
+    try:
+        result = polymarket_trading.get_order_status(order_id)
+        return result
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.get("/orders/{user_id}")
+def get_user_orders(user_id: str, limit: int = 10):
+    """Get user's recent orders from Polymarket"""
+    try:
+        # Get user's wallet address
+        wallet_data = db.get_wallet(user_id)
+
+        if not wallet_data:
+            return {
+                "success": False,
+                "message": "No wallet found"
+            }
+
+        wallet_address = wallet_data.get('wallet_address')
+
+        if not wallet_address:
+            return {
+                "success": False,
+                "message": "Invalid wallet address"
+            }
+
+        # Get orders from Polymarket
+        result = polymarket_trading.get_user_orders(wallet_address, limit)
+
+        return result
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.post("/orders/cancel/{order_id}")
+def cancel_order(order_id: str):
+    """Cancel an open order"""
+    try:
+        result = polymarket_trading.cancel_order(order_id)
+        return result
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
 # ==================== SETTINGS ENDPOINTS ====================
@@ -891,7 +1128,7 @@ def create_safe_wallet(user_id: str):
 def connect_external_wallet(user_id: str, wallet_data: WalletConnect):
     """Connect external wallet (MetaMask/WalletConnect option)"""
     result = wallet_manager.connect_external_wallet(user_id, wallet_data.wallet_address)
-    
+
     if result['success']:
         return {
             "success": True,
@@ -899,6 +1136,21 @@ def connect_external_wallet(user_id: str, wallet_data: WalletConnect):
         }
     else:
         raise HTTPException(status_code=400, detail=result.get('error', 'Failed to connect wallet'))
+
+
+@app.post("/wallet/import-private-key/{user_id}")
+def import_private_key(user_id: str, wallet_data: WalletConnect):
+    """Import wallet from private key"""
+    # wallet_data.wallet_address actually contains the private key in this case
+    result = wallet_manager.import_private_key(user_id, wallet_data.wallet_address)
+
+    if result['success']:
+        return {
+            "success": True,
+            "wallet": result
+        }
+    else:
+        raise HTTPException(status_code=400, detail=result.get('error', 'Failed to import private key'))
 
 
 @app.get("/wallet/{user_id}")
@@ -923,6 +1175,221 @@ def get_wallet_balance(wallet_address: str):
     """Get wallet balance (MATIC and USDC)"""
     balance = wallet_manager.get_wallet_balance(wallet_address)
     return balance
+
+
+@app.get("/wallets/all/{user_id}")
+def get_all_user_wallets(user_id: str):
+    """Get all wallets associated with a user"""
+    try:
+        from bson.objectid import ObjectId
+
+        # Get all wallets from wallets collection for this user
+        wallets_collection = wallet_manager.db.db['wallets']
+        user_wallets = list(wallets_collection.find({"user_id": user_id}))
+
+        # Get current active wallet from user record
+        user = wallet_manager.db.users.find_one({"_id": ObjectId(user_id)})
+        active_wallet_address = user.get('wallet_address') if user else None
+
+        wallets_list = []
+        for wallet in user_wallets:
+            wallet_data = {
+                "wallet_address": wallet.get('wallet_address'),
+                "wallet_type": wallet.get('wallet_type'),
+                "created_at": wallet.get('created_at'),
+                "is_active": wallet.get('wallet_address') == active_wallet_address
+            }
+
+            # Get balance for this wallet
+            balance_info = wallet_manager.get_wallet_balance(wallet.get('wallet_address'))
+            wallet_data.update({
+                "pol_balance": balance_info.get('pol_balance', 0),
+                "usdc_balance": balance_info.get('usdc_balance', 0),
+                "total_usd": balance_info.get('total_usd', 0)
+            })
+
+            wallets_list.append(wallet_data)
+
+        return {
+            "success": True,
+            "wallets": wallets_list,
+            "active_wallet": active_wallet_address
+        }
+    except Exception as e:
+        print(f"Error getting all wallets: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.post("/wallet/switch/{user_id}")
+def switch_active_wallet(user_id: str, wallet_data: WalletConnect):
+    """Switch the active wallet for a user"""
+    try:
+        from bson.objectid import ObjectId
+
+        wallet_address = wallet_data.wallet_address
+
+        # Verify this wallet belongs to the user
+        wallets_collection = wallet_manager.db.db['wallets']
+        wallet = wallets_collection.find_one({
+            "user_id": user_id,
+            "wallet_address": wallet_address
+        })
+
+        if not wallet:
+            return {
+                "success": False,
+                "error": "Wallet not found or does not belong to this user"
+            }
+
+        # Update user's active wallet
+        wallet_manager.db.users.update_one(
+            {"_id": ObjectId(user_id)},
+            {
+                "$set": {
+                    "wallet_address": wallet_address,
+                    "wallet_type": wallet.get('wallet_type')
+                }
+            }
+        )
+
+        return {
+            "success": True,
+            "message": "Active wallet switched successfully",
+            "wallet_address": wallet_address,
+            "wallet_type": wallet.get('wallet_type')
+        }
+    except Exception as e:
+        print(f"Error switching wallet: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+class SendFundsRequest(BaseModel):
+    recipient: str
+    amount: float
+    token: str  # 'usdc' or 'pol'
+
+
+@app.post("/wallet/send/{user_id}")
+def send_funds(user_id: str, send_request: SendFundsRequest):
+    """Send USDC or POL from user's wallet to another address"""
+    print(f"[SEND API] Send request for user: {user_id}")
+    print(f"[SEND API] Token: {send_request.token}, Amount: {send_request.amount}")
+    print(f"[SEND API] Recipient: {send_request.recipient}")
+
+    # Get user data
+    user_data = db.get_user(user_id=user_id)
+
+    if not user_data:
+        return {
+            "success": False,
+            "message": "User not found"
+        }
+
+    wallet_address = user_data.get('wallet_address')
+    wallet_type = user_data.get('wallet_type', 'unknown')
+
+    if not wallet_address:
+        return {
+            "success": False,
+            "message": "No wallet found for this user"
+        }
+
+    # Only allow Safe wallets to use the send feature
+    if wallet_type != 'safe':
+        return {
+            "success": False,
+            "message": "Send feature is only available for Safe Wallets",
+            "wallet_type": wallet_type,
+            "explanation": "Only Polymarket Safe Wallets can use the gasless send feature. If you have an imported wallet, please use your wallet app (MetaMask, Rabby, etc.) to send funds."
+        }
+
+    # Get private key (this is the owner's key for Safe wallets)
+    private_key = wallet_manager.export_private_key(user_id)
+
+    if not private_key:
+        return {
+            "success": False,
+            "message": "Could not retrieve wallet private key"
+        }
+
+    # For Safe wallets, check if owner has enough POL for gas
+    from eth_account import Account
+    owner_account = Account.from_key(private_key)
+    owner_address = owner_account.address
+
+    print(f"[SEND API] Safe wallet: {wallet_address}")
+    print(f"[SEND API] Owner address: {owner_address}")
+
+    # Check owner's POL balance for gas
+    try:
+        owner_balance_info = wallet_manager.get_wallet_balance(owner_address)
+        owner_pol_balance = float(owner_balance_info.get('pol_balance', 0))
+
+        print(f"[SEND API] Owner POL balance: {owner_pol_balance}")
+
+        # Need at least 0.05 POL for gas (~$0.10)
+        if owner_pol_balance < 0.05:
+            return {
+                "success": False,
+                "message": "Owner needs POL for gas",
+                "owner_address": owner_address,
+                "owner_pol_balance": owner_pol_balance,
+                "required_pol": 0.05,
+                "explanation": f"To withdraw from your Safe wallet, the owner address needs at least 0.05 POL (~$0.10) for gas fees.\n\nOwner Address: {owner_address}\n\nPlease send 0.1 POL to the owner address above, then try withdrawing again."
+            }
+    except Exception as e:
+        print(f"[SEND API] Warning: Could not check owner balance: {e}")
+
+    # Send the funds
+    try:
+        if send_request.token.lower() == 'usdc':
+            result = wallet_manager.blockchain.send_usdc(
+                from_private_key=private_key,
+                to_address=send_request.recipient,
+                amount=send_request.amount
+            )
+        elif send_request.token.lower() == 'pol':
+            result = wallet_manager.blockchain.send_matic(
+                from_private_key=private_key,
+                to_address=send_request.recipient,
+                amount=send_request.amount
+            )
+        else:
+            return {
+                "success": False,
+                "message": f"Invalid token type: {send_request.token}"
+            }
+
+        if result.get('success'):
+            print(f"[SEND API] ✅ Funds sent successfully!")
+            print(f"[SEND API] Transaction: {result.get('tx_hash')}")
+
+            return {
+                "success": True,
+                "message": f"{send_request.amount} {send_request.token.upper()} sent successfully!",
+                "tx_hash": result.get('tx_hash'),
+                "explorer_url": result.get('explorer_url')
+            }
+        else:
+            print(f"[SEND API] ❌ Send failed: {result.get('error')}")
+            return {
+                "success": False,
+                "message": "Send failed",
+                "error": result.get('error')
+            }
+    except Exception as e:
+        print(f"[SEND API] ❌ Exception: {e}")
+        return {
+            "success": False,
+            "message": "Failed to send funds",
+            "error": str(e)
+        }
 
 
 @app.post("/wallet/export-key/{user_id}")
@@ -965,16 +1432,19 @@ def export_private_key(user_id: str, key_export: PrivateKeyExport):
     if wallet_type == 'safe':
         print(f"[EXPORT API] Safe wallet detected - will export owner's private key")
 
-    # Check password for in-app wallets
+    # Check password for in-app wallets (if password was provided)
     stored_password = user_data.get('password')
-    if stored_password:
+    if stored_password and key_export.password:
         if not verify_password(key_export.password, stored_password):
             print(f"[EXPORT API] ❌ Invalid password")
             return {
                 "success": False,
                 "message": "Invalid password"
             }
-    # If no password set (legacy user), allow export but warn
+    # If no password provided or no password set (legacy user), allow export but warn
+    elif stored_password and not key_export.password:
+        print(f"[EXPORT API] ⚠️ Warning: Export without password verification")
+    # If no password set (legacy user), allow export
 
     print(f"[EXPORT API] Attempting to export in-app wallet key...")
     private_key = wallet_manager.export_private_key(user_id)
@@ -1046,7 +1516,7 @@ def check_usdc_allowance(user_id: str):
     print(f"[ALLOWANCE API] Wallet type: {wallet_type}")
 
     # Check allowance on blockchain
-    result = blockchain.check_usdc_allowance(wallet_address)
+    result = wallet_manager.blockchain.check_usdc_allowance(wallet_address)
 
     if result.get('success'):
         print(f"[ALLOWANCE API] ✅ Allowance: ${result.get('allowance', 0):.2f}")
@@ -1099,8 +1569,8 @@ def approve_usdc_for_trading(user_id: str, amount: float = None):
     print(f"[APPROVE API] Wallet address: {wallet_address}")
     print(f"[APPROVE API] Wallet type: {wallet_type}")
 
-    # Can only approve for in-app wallets (need private key)
-    if wallet_type != 'in-app':
+    # Can only approve for in-app and imported wallets (need private key)
+    if wallet_type not in ['in-app', 'imported', 'safe']:
         print(f"[APPROVE API] ❌ External wallet - approval must be done via wallet app")
         return {
             "success": False,
@@ -1121,7 +1591,7 @@ def approve_usdc_for_trading(user_id: str, amount: float = None):
 
     # Execute approval on blockchain
     print(f"[APPROVE API] Executing USDC approval transaction...")
-    result = blockchain.approve_usdc(private_key, amount)
+    result = wallet_manager.blockchain.approve_usdc(private_key, amount)
 
     if result.get('success'):
         print(f"[APPROVE API] ✅ USDC approved successfully!")
@@ -1169,8 +1639,8 @@ def get_top_traders(limit: int = 5):
 
             stats = db.get_user_stats(user_id)
 
-            # Only include users with at least 100 trades (verified traders)
-            if stats['total_trades'] >= 100:
+            # Only include users with at least 101 trades (verified traders)
+            if stats['total_trades'] >= 101:
                 all_stats.append({
                     'wallet_address': wallet_address,
                     'win_rate': stats['win_rate'],
@@ -1179,7 +1649,7 @@ def get_top_traders(limit: int = 5):
                     'user_id': user_id
                 })
 
-        print(f"Found {users_found} users, {len(all_stats)} with 100+ trades")
+        print(f"Found {users_found} users, {len(all_stats)} with 101+ trades")
 
         # Sort by win rate descending
         all_stats.sort(key=lambda x: x['win_rate'], reverse=True)
@@ -1333,22 +1803,32 @@ def generate_whale_activity():
         whale_id_counter += 1
 
         # Get real trending markets from Polymarket
+        market_id = None
+        market_question = "Unknown Market"
+        volume = 0
+        probability = 0.5
+
         try:
             trending_markets = polymarket.get_markets(limit=10)
             if trending_markets:
                 random_market = random.choice(trending_markets)
                 market_question = random_market.get('question', 'Unknown Market')
-            else:
-                market_question = "Unknown Market"
-        except:
-            market_question = "Unknown Market"
+                market_id = random_market.get('id', 'unknown')
+                volume = random_market.get('volume', 0)
+                probability = random_market.get('probability', 0.5)
+        except Exception as e:
+            print(f"[WHALE] Error fetching markets: {e}")
 
         whale = {
             "id": whale_id_counter,
             "wallet": random.choice(WHALE_WALLETS),
+            "side": "BUY",  # Always BUY for whale alerts
             "position": random.choice(["YES", "NO"]),
             "amount": random.randint(25000, 100000),  # $25K to $100K (only large buys)
-            "market": market_question,
+            "market_question": market_question,
+            "market_id": market_id,
+            "volume": volume,
+            "probability": probability,
             "timestamp": datetime.now().isoformat()
         }
 

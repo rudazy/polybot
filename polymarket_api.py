@@ -196,6 +196,20 @@ class PolymarketAPI:
             outcomes = market.get("outcomes", [])
             outcome_prices = market.get("outcomePrices", [])
 
+            # Parse outcomes if it's a JSON string
+            if isinstance(outcomes, str):
+                try:
+                    outcomes = json.loads(outcomes)
+                except:
+                    outcomes = []
+
+            # Parse outcome_prices if it's a JSON string
+            if isinstance(outcome_prices, str):
+                try:
+                    outcome_prices = json.loads(outcome_prices)
+                except:
+                    outcome_prices = []
+
             # Try to get YES probability from multiple possible locations
             yes_price = 0.5  # default
             no_price = 0.5   # default
@@ -206,8 +220,26 @@ class PolymarketAPI:
                 no_price = float(outcome_prices[1]) if len(outcome_prices) > 1 and outcome_prices[1] else (1 - yes_price)
             elif outcomes and len(outcomes) >= 1:
                 # Try to get from outcomes array
-                yes_price = float(outcomes[0].get("price", 0.5))
-                no_price = float(outcomes[1].get("price", 0.5)) if len(outcomes) > 1 else (1 - yes_price)
+                if isinstance(outcomes[0], dict):
+                    yes_price = float(outcomes[0].get("price", 0.5))
+                    no_price = float(outcomes[1].get("price", 0.5)) if len(outcomes) > 1 else (1 - yes_price)
+
+            # Extract token IDs for trading (YES/NO outcome token IDs)
+            # Polymarket returns clobTokenIds as JSON string
+            token_ids = []
+            clob_token_ids = market.get("clobTokenIds", market.get("tokens", []))
+
+            if isinstance(clob_token_ids, str):
+                # Parse JSON string
+                try:
+                    token_ids = json.loads(clob_token_ids)
+                except:
+                    token_ids = []
+            elif isinstance(clob_token_ids, list):
+                token_ids = clob_token_ids
+
+            # Condition ID (used for orderbook/trading)
+            condition_id = market.get("condition_id") or market.get("conditionId") or market_id
 
             # Build formatted response
             formatted = {
@@ -222,7 +254,10 @@ class PolymarketAPI:
                 "market_slug": market.get("market_slug", ""),
                 "end_date": market.get("end_date_iso"),
                 "active": market.get("active", True),
-                "closed": market.get("closed", False)
+                "closed": market.get("closed", False),
+                # Trading fields
+                "condition_id": condition_id,
+                "token_ids": token_ids  # [YES_token_id, NO_token_id]
             }
 
             # Log for debugging (only first market to avoid spam)
@@ -238,7 +273,8 @@ class PolymarketAPI:
 
         except Exception as e:
             print(f"[FORMAT ERROR] Error formatting market: {e}")
-            print(f"  Raw market data: {market}")
+            print(f"  Market ID: {market.get('id', 'unknown')}")
+            print(f"  Question: {market.get('question', 'unknown')[:100]}...")
             import traceback
             traceback.print_exc()
 
