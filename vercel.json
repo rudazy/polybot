@@ -27,6 +27,10 @@
       "dest": "/frontend/styles.css"
     },
     {
+      "src": "/how-it-works.html",
+      "dest": "/frontend/how-it-works.html"
+    },
+    {
       "src": "/",
       "dest": "/frontend/index.html"
     }
